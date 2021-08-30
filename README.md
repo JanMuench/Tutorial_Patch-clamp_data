@@ -6,6 +6,7 @@ The package contains a file containing the STAN code “KF.txt” as well as the
 The topology of the kinetic scheme is uniquely defined by a rate matrix. Our example code demonstrates the analysis with a two ligand-gated 4 state model of patch-clamp data. The rate matrix is defined by the lines 543-563 in the file “KF.txt”. The mean observation is defined in line 806 with the vector variable “conduc_state”. 
 
 Step by step:
+
 	1. One needs to install Stan and PyStan.
 	2. One executes “compile_CCCCO_normal_split.py” by prompting
 		 “python3  compile_CCCCO_normal_split.py” into the command line.
