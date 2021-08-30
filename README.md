@@ -30,3 +30,37 @@ Step by step:
 	were measured from one patch. For optimal caluclation efficiency, 10 time traces 
 	require 20 CPUs (activation and decay). 40 CPU to apply cross validaton times 4 for 
 	4 independent sample chains.
+	
+	4. The output of samples as we used them in the publication.
+	4.1 The csv file “rate_matrix_params” saves the samples of the posterior of the rate 
+	matrix. Simply analysing them means that we marginalized all other parameters out. Note
+	that the dwell times are on a scaled log space 	thus one has to multiply them by a 
+	scaling factor for the actual log space. 
+	4.2 The single-channel current samples are saved in an numpy array “i_single.npy”.
+	4.3 The samples of the variance parameter are saved in the numpy array 	file “measurement_sigma.npy”.
+	4.4 The samples of the open-channel variance parameter are saved in the numpy array file “open_variance.npy”.
+	4.5 The samples of the “Ion channels per time trace parameter” are saved in the numpy array file “N_traces.npy”.
+
+	5. To adapt the kinetic scheme one needs to change a few things within KF.txt  which are 
+	the observation model matrix H and the functions related to the kinetic scheme. Then 
+	“KF.txt” needs to be recompiled:
+	5.1. The row vector “conduc_state” needs to  be changed to the desired signal model. It 
+	represents the matrix H of the 	article which generates the mean signal for a given 
+	ensemble state. If more than  two conducting classes (non-conducting and conducting) are
+	modeled, additional single-channel current parameters need to be defined in the parameters block.
+
+	5.2 The function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters from the parameters block and computes 		the rates of the rate matrix. They are then passed to the “assign_param_to_rate_matrix_CCCO” function. Note that this example 					code has four dwell times as parameters and two ratios from them the six 					rates are constructed. We recommend to use a log uniform prior for the 					dwell time and a beta distribution or rather a Dirichlet distribution for the 				probabilities which transition is taken.
+5.3 The function “assign_param_to_rate_matrix_CCCO” assigns rates to 	the off diagonal elements. Note that a closed first order Markov system requires that each diagonal element is the negative sum of its column. That property is enforced in function “assign_diagonal_elements”. Note that this is redundant as we start in the 	parameters block with the dwell times as parameters. But we could have chosen a different parametrization to begin with. We argue in the paper to use this parametrisation in order to use a Jeffreys prior but there a couple of other options.
+			5.4 The mean observation needs to be changed in line 806
+			5.5 If the amount of open-channel states with differing open-channel noise 				variances for each state needs to be calculated,  the function 						“calc_sigma_and_mean” must be adapted
+
+
+Although we recommend to have the dwell times (diagonal elements of the rate matrix) as parameters, we recalculate them which is reminiscent of former parameterizations.  
+
+Note, that PyStan 3 is not downward compatible. Thus, using PyStan 3 requires some minor changes to the compiling sampling and saving of the samples. To visualize and analyze a posterior/draw from the posterior, we recommend the package Corner.py. To implement a posterior post processing and diagnosis in a Bayesian workflow, we highly recommend  using the Arviz package.
+
+Note, that in the first KF analysis round we do not report the derived quantities such as mean signal and covariance for a given time.  We discussed in the Appendix of the paper that this would expand the total runtime of the program by roughly two orders of magnitude.  To show the posterior of the mean signal and the posterior of the variance, we suggest to use a subset of the posterior samples and feed it to the KF to do the filtering. It requires minimal changes to the KF code.
+
+The data used for the posterior is “data_start.npy” and “data_dec.npy”. The suffix “hold” means that this would be the data used as a hold-out data set if one would do cross validation.
+
+			
