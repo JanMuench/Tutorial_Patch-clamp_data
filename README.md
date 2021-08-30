@@ -21,3 +21,12 @@ Step by step:
 	is the time axis of all traces in the  current array. The ligand concentrations are saved 
 	in “ligand_conc.txt” and “ligand_conc_decay.txt”. Each row of the ligand matrix defines an 
 	array whose entries are element-wise multiplied to the rates in the function 
+	“multiply_ligandconc_CCCO”. Ligand-independent rates are multiplied by one and the ligand
+	depended rates are multiplied with a ligand concentration. Within the script  
+	“sample_PC_data.py” in the functions “data_slices_beg_new” and 	“data_slices_decay_new” 
+	the time points of the concentration jumps are defined. Additionally, each time trace 
+	is cutted that activation or deactivation is treated as an individual time trace on an 
+	individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
+	were measured from one patch. For optimal caluclation efficiency, 10 time traces 
+	require 20 CPUs (activation and decay). 40 CPU to apply cross validaton times 4 for 
+	4 independent sample chains.
