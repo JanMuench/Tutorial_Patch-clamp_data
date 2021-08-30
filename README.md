@@ -8,7 +8,9 @@ The topology of the kinetic scheme is uniquely defined by a rate matrix. Our exa
 Step by step:
 
 	1. One needs to install Stan and PyStan.
+	
 	2. One executes “compile_CCCCO_normal_split.py” by prompting
 		 “python3  compile_CCCCO_normal_split.py” into the command line.
 		 That compiles the Stan code “KF.txt” into an executable program “KF_CCCO.pic”.
+		 
 	3. Prompting “python3 sample_PC_data.py 8000” executes a Python program which acts as an interface between the data from “data/current8000.npy” and 			        sampling algorithm “KF_CCCO.pic”. In the folder, data are 4 numpy arrays. The numpy array “current8000.npy” has the data of 10 different 	              	   ligand concentrations with two ligand jumps from zero to the concentration and back to zero. The numpy array  “Time.npy” is the time axis of all 			        traces in the  current array. The ligand concentrations are saved in “ligand_conc.txt” and “ligand_conc_decay.txt”. Each row of the ligand matrix defines      an array whose entries are element-wise multiplied to the rates in the function 
