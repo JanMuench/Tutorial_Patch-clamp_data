@@ -1,0 +1,2 @@
+# Tutorial_Patch-clamp_data
+This tutorial is an example code for patch-clamp measurements which is part of the publication “Bayesian inference of kinetic schemes for ion channels by Kalman filtering”. The work was done in Stan https://mc-stan.org/ with the PyStan interface version 2.19.1.2 which is currently outdated. We plan to update the tutorial folder to PyStan 3 in the near future. The code is parallelized for the multiple CPUs of a node on a computation cluster. Each individual sampling chain is trivially calculated in parallel provided by the Stan language.
