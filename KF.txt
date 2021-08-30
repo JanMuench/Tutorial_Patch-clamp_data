@@ -1,0 +1,1504 @@
+
+functions{
+    real[] flattenDataPatch(vector y_time_trace,real y_equi,real dif_time,real off_set, vector ligand_base,
+ vector ligant_current, real  numeric_precision,  int N_data, int N_free_para, int resultSize)
+{
+   real result[resultSize] ;
+   int current;
+   for (n_data in 1: N_data)
+   {
+     result[n_data] = y_time_trace[n_data];
+   }
+   current = N_data+1;
+   result[current] = y_equi;
+   current+=1;
+
+   result[current] = dif_time;
+   current+=1;
+
+   result[current] = off_set;
+   current+=1;
+
+    for (i in 1 : N_free_para)
+    {
+      result[current] = ligand_base[i];
+        current+=1;
+    }
+
+    for (i in 1 : N_free_para)
+    {
+      result[current] = ligant_current[i];
+        current+=1;
+    }
+
+   result[current] = numeric_precision;
+   current+=1;
+
+   return result;
+}
+
+vector flattenParameterProposal(real i_single_channel,
+                    real[] rates,
+                    real[] ratio,
+                    real[] N_ion_trace,
+                    real var_exp,
+                    real open_var,
+                    int N_free_para,
+                    int N_conc){
+     vector[N_free_para+ N_conc/2 + 3] flattendParameters;
+     int current = 1;
+     for(i in 1 : N_free_para/2)
+     {
+      flattendParameters[current]  = rates[i];
+      current+=1;
+     }
+
+     for(i in 1 : N_free_para/2)
+     {
+      flattendParameters[current]  = ratio[i];
+      current+=1;
+     }
+
+     for(i in 1 : N_conc/2)
+     {
+      flattendParameters[current]  = N_ion_trace[i];
+      current+=1;
+     }
+
+     flattendParameters[current]  = i_single_channel;
+     current+=1;
+
+     flattendParameters[current]  = var_exp;
+     current+=1;
+
+     flattendParameters[current]  = open_var;
+     current+=1;
+
+     return flattendParameters;
+}
+
+
+
+
+
+
+    vector return_off_set(int lenght, real off_set){
+        vector[lenght] result;
+        for(id in 1 : lenght){
+            result[id] = off_set;
+        }
+    return result;
+    }
+    vector return_vector(int legth, real value)
+    {
+        vector[legth] zero;
+        for(i in 1:legth)
+        {
+            zero[i] = value;
+        }
+        return zero;
+    }
+
+vector  calc_first_distribut(int M_states, vector Start_values, matrix rate_mat,real time_off_set, real LATENT_TIME)
+        {
+        vector[M_states] result;
+        result = matrix_exp(rate_mat * (time_off_set + 0.0002 * LATENT_TIME)) * Start_values;
+        return result;
+        }
+vector  propagate_mu_in_time(int M_states, vector Start_values, matrix transition_mat,
+                            real numeric_precision)
+        {
+        vector[M_states] result;
+        if(fabs(sum(Start_values)-1) > numeric_precision*10){
+                print("sum mu before transition",fabs(sum(Start_values)-1));
+        }
+
+        result = transition_mat * Start_values;
+        if(fabs(sum(result)-1) > numeric_precision*10){
+                print("sum mu after transition",fabs(sum(result)-1));
+        }
+        return result;
+        }
+
+vector update_mu_due_measurement(int M_states, row_vector conductance, vector mu,
+                                matrix corre_mat, real y_data, vector projection_and_sigma,
+                                real numeric_precision)
+{
+    vector[M_states] result;
+    result = mu + (y_data - projection_and_sigma[1])/projection_and_sigma[2] * (conductance * corre_mat)';
+    //print("mu: ", mu)
+    //print("result: ", result);
+    /*if(fabs(sum(result)-1) > numeric_precision){
+        print("Warning update_mu_due measuerement goes wrong", sum(result)-1);
+    }*/
+    //print("sum(result) should be 1: ", sum(result));
+
+    return result;
+}
+
+matrix update_covarianve_due_measurement(int M_states, real N_trace, real sigma,
+                                        row_vector conducance, matrix corre_mat)
+{
+    matrix[M_states,M_states] result;
+    result = corre_mat - N_trace/sigma *  corre_mat * conducance' * conducance * corre_mat;
+
+    for(i in 1 : M_states){
+        for(j in 1 : M_states){
+            if ((corre_mat[i,j]-corre_mat[i,j])  != 0){
+                reject("correlation_matrix[i,j] != correlation_matrix[j,i]", i,j);
+            }
+        }
+    }
+    return result;
+}
+
+matrix propagate_covariance_in_time(int M_states, matrix corre_mat_old,
+                                    vector mu_new, matrix transition, vector mu_old){
+    matrix[M_states,M_states] result;
+    result = diag_matrix(mu_new) - transition * diag_matrix(mu_old)* transition'
+                                 + transition *  corre_mat_old * transition';
+    return result;
+}
+
+vector calc_sigma_and_mean(real N_ion_trace,row_vector conduc_state,
+                           vector mu, matrix corre_mat, real var_exp,real open_var,real i_single)
+{
+       vector[2] result;
+       result[1] = N_ion_trace * conduc_state * mu;
+       /// open channel noise term in the middle
+       // adding numerical stabilty in particlar in the warm up of the sampler or small N_channel patches
+       // which is essentially sqrt(pow(open_var*result[1]/i_single+pow(10,-11),2)) = open_var*result[1]/i_single
+       //unless unphysical negativ results are calulated
+       result[2] = var_exp + sqrt(pow(open_var*result[1]/i_single+pow(10,-11),2)) + N_ion_trace * conduc_state * corre_mat * conduc_state';
+       //moffat without additional open noise
+       //result[2] = var_exp + N_ion_trace * conduc_state * corre_mat * conduc_state';
+
+       return result;
+       }
+
+matrix update_correlation_matrix(int M_states, real N_ion_trace, vector param_likelihood, row_vector conduc_state,
+                                matrix corre_mat, matrix transition_mat, vector mu, vector mu_old){
+       matrix[M_states, M_states] result;
+       result = update_covarianve_due_measurement(M_states, N_ion_trace, param_likelihood[2],
+                                                                   conduc_state, corre_mat);
+              // print("cov_matrix after update", result);
+       result = propagate_covariance_in_time(M_states, result, mu, transition_mat,
+                                                             mu_old);
+                    return result;
+}
+
+vector projection_on_open_states(int N_data,
+                                    row_vector conductance_states,
+                                    vector[] occupat
+                                    ){
+    // Be careful if you switch to vectors here
+    vector[N_data] result;
+    for(id in 1 : N_data){
+        result[id] = conductance_states * occupat[id];
+    }
+    return result;
+    }
+
+
+    void check_proposed_rate_matrix(matrix rates,real numeric_precision)
+    {
+        /*Is that good testing? Or is it better to test abs value be lager then 0?*/
+        if(fabs(determinant(rates)) < numeric_precision)
+        {
+           reject("determiant(rates) = ", determinant(rates));
+        }
+
+    }
+
+matrix assign_param_to_rate_matrix_CCO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0],
+                        [theta[2],        0, theta[3]],
+                        [       0, theta[4],        0]];
+
+        return rates_mat;
+    }
+
+
+    vector multiply_ligandconc_CCO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]*24.0*equili[1];
+        theta[3] = theta_array[2];
+        theta[4] = theta_array[2] * 10 * equili[2];
+
+        return theta .* ligand_conc;
+    }
+
+matrix assign_param_to_rate_matrix_CCOC(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0],
+                        [theta[2],        0, theta[3],   theta[5]],
+                        [       0, theta[4],        0,          0],
+                        [       0, theta[6],        0,         0]];
+
+
+
+        return rates_mat;
+    }
+
+
+matrix assign_param_to_rate_matrix_CCCO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0],
+                        [theta[2],        0, theta[3],         0],
+                        [       0, theta[4],        0,  theta[5]],
+                        [       0,        0,  theta[6],        0]];
+
+
+
+        return rates_mat;
+    }
+
+
+matrix assign_param_to_rate_matrix_CCOCO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0,             0],
+                        [theta[2],        0, theta[3],         0,      theta[7]],
+                        [       0, theta[4],        0,  theta[5],             0],
+                        [       0,        0,  theta[6],        0,             0],
+                        [       0, theta[8],        0,         0,             0]];
+
+
+
+
+        return rates_mat;
+    }
+
+    vector multiply_ligandconc_CCCO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]*24.0*equili[1];//1400 * equili[1];//
+        theta[3] = theta_array[2];
+        theta[4] = theta_array[2]* 6.0/5.0 * equili[2];//700 * equili[2]; //theta_array[2]* 6.0/5.0 * equili[2]; //3/5 * 2
+
+        theta[5] = theta_array[3];
+        theta[6] = theta_array[3] * 10 * equili[3];  //8/2*2
+
+        return theta .* ligand_conc;
+    }
+
+
+    vector multiply_ligandconc_CCCO_log_uniform(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[2] = theta_array[1];
+
+
+        theta[4] = theta_array[2] ;
+        theta[1] = theta[4]/ (1-equili[1]) * equili[1];
+
+
+        theta[3] = theta_array[3] * equili[2];
+        theta[6] = theta_array[3] * (1- equili[2]);
+        theta[5] = pow(10,(4.7* equili[3]-1));
+
+        return theta .* ligand_conc;
+    }
+
+vector multiply_ligandconc_CCOCO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]*24.0*equili[1];
+        theta[3] = theta_array[2];
+        theta[4] = theta_array[2]* 6.0/5.0 * equili[2]; //3/5 * 2
+
+        theta[5] = theta_array[3];
+        theta[6] = theta_array[3] * 100 * equili[3];  //8/2*2
+
+        theta[7] = theta_array[4];
+        theta[8] = theta_array[4] * 0.1 * equili[4];  //8/2*2
+
+        return theta .* ligand_conc;
+    }
+
+
+matrix assign_param_to_rate_matrix_CCCCO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0,               0],
+                        [theta[2],        0, theta[3],         0,               0],
+                        [       0, theta[4],        0,  theta[5],               0],
+                        [       0,        0,  theta[6],        0,         theta[7]],
+                        [       0,        0,         0,  theta[8],              0]];
+
+
+
+
+        return rates_mat;
+    }
+
+matrix assign_param_to_rate_matrix_CCCCCO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0,               0,          0],
+                        [4*600*theta[2],        0, 2*theta[3],         0,               0,          0],
+                        [       0, 3*600*theta[4],        0,  3*theta[5],               0,          0],
+                        [       0,        0,  2*600*theta[6],        0,         4*theta[7],         0],
+                        [       0,        0,         0,  600*theta[8],              0,   theta[9]],
+                        [       0,        0,         0,        0,         theta[10],        0]];
+
+
+
+        return rates_mat;
+    }
+
+vector multiply_ligandconc_CCCCCO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+
+
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = equili[1]; //1200
+        theta[3] = theta_array[2];
+        theta[4] = equili[2];//300
+
+        theta[5] = theta_array[3];
+        theta[6] = equili[3];//125
+
+        theta[7] = theta_array[4];
+        theta[8] = equili[4];//75
+
+        theta[9] = theta_array[5];
+        theta[10] = theta_array[5] * 10 * equili[5];
+
+        return theta .* ligand_conc;
+    }
+
+
+vector multiply_ligandconc_CCCCO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]* 24.0*equili[1];
+        theta[3] = theta_array[2]+50000;
+        theta[4] = (theta_array[2]+50000)* 6.0/5.0 * equili[2];
+
+        theta[5] = theta_array[3];
+        theta[6] = theta_array[3] * 50 * equili[3];
+
+        theta[7] = theta_array[4];
+        theta[8] = theta_array[4] * 50 * equili[4];
+
+        return theta .* ligand_conc;
+    }
+
+
+
+
+
+
+
+
+
+
+
+matrix assign_param_to_rate_matrix(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0,        0],
+                        [theta[2],        0, theta[3],         0,        0],
+                        [       0, theta[4],        0,  theta[5],        0],
+                        [       0,        0,  theta[6],        0,  theta[7]],
+                        [       0,        0,        0,  theta[8],        0]];
+
+
+        return rates_mat;
+    }
+
+    vector multiply_ligandconc(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]*24.0*equili[1];
+        theta[3] = theta_array[2];
+        theta[4] = theta_array[2]* 6.0/5.0 * equili[2]; //3/5 * 2
+
+        theta[5] = theta_array[3];
+        theta[6] = theta_array[3] * 2.0/8.0 * equili[3];  //8/2*2
+
+        theta[7] = theta_array[4];
+        theta[8] = theta_array[4]* 10* equili[4];
+        return theta .* ligand_conc;
+    }
+
+matrix assign_diagonal_elements(matrix rates,
+                                    int M_states,
+                                    real numeric_precision)
+    {
+        vector[M_states] diag;
+        matrix[M_states,M_states] result;
+        for(id in 1: M_states)
+        {
+
+            diag[id] = -1 * sum(col(rates, id));
+        }
+        result = diag_matrix(diag) + rates;
+        for(id in 1 : M_states){
+            if( fabs(sum(col(result, id))) > numeric_precision){
+                print("column", id);
+                print("sum column rate_mat", sum(col(result, id)));
+                print("Warning assigmend goes wrong!! Ill defined rate matrix");
+                print("full rate Matrix", result);
+                reject("This metropils states is rejected")
+            }
+        }
+
+        return result;
+    }
+
+vector multiply_ligandconc_CCO_CO(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        vector[N_free_para] theta;
+        //print("ratio: ", theta_array[6]);
+        theta[1] = theta_array[1];
+        theta[2] = theta_array[1]*24.0*equili[1];
+        theta[3] = theta_array[2];
+        theta[4] = theta_array[2]* 6.0/5.0 * equili[2]; //3/5 * 2
+
+        theta[5] = theta_array[3];
+        theta[6] = 20+theta_array[3] * 200 * equili[3];  //8/2*2
+
+        theta[7] = theta_array[4];
+        theta[8] = theta_array[4] * 0.1 * equili[4];  //8/2*2
+
+        theta[9] = 0.05 * theta_array[5];
+        //time reversibilty
+        //theta[10] = exp(log(theta[3])+log(theta[5])+log(theta[8])+log(theta[9])-log(theta[4])-log(theta[6])-log(theta[7]));
+        theta[10] = theta_array[5] * 0.1 * equili[5];  //8/2*2
+
+        return theta .* ligand_conc;
+    }
+
+matrix assign_param_to_rate_matrix_CCO_CO(vector theta,
+                                   int M_states)
+    {
+        matrix[M_states, M_states] rates_mat;
+        rates_mat    = [[      0 , theta[1],        0,         0,             0],
+                        [theta[2],        0, theta[3],         0,      theta[7]],
+                        [       0, theta[4],        0,  theta[5],             0],
+                        [       0,        0,  theta[6],        0,      theta[9]],
+                        [       0, theta[8],        0, theta[10],             0]];
+
+
+
+        return rates_mat;
+    }
+
+matrix create_rate_matrix(real[] theta_array,
+                           real[] ratios,
+                           int N_free_para,
+                           vector ligand_conc,
+                        int M_states,
+                        real numeric_precision){
+
+        matrix[M_states,M_states] rates;
+        vector[N_free_para] theta_vec = multiply_ligandconc_CCCO_log_uniform(theta_array,
+                           ratios,
+                           N_free_para,
+                           ligand_conc);
+
+        rates = assign_param_to_rate_matrix_CCCO(theta_vec, M_states);
+
+        rates  = assign_diagonal_elements(rates,M_states,
+                                    numeric_precision);
+
+        return rates;
+    }
+
+matrix calc_auto_covariance(int N_data, int M_states,
+                            int N_free_para, real N_trace,
+                            real dif_time, real i_single_channel,
+                            real numeric_precision,
+                            real[] theta_array,
+                            real[] ratio,
+                            vector ligand_conc,
+                            vector[] occupat,
+                            row_vector conductance_of_states){
+
+
+        matrix[N_data,N_data] cov;
+        matrix[M_states,M_states] conductance_matrix;
+        vector[M_states]  i_single_vec;
+        vector[M_states]   i_single_squaerred_elements;
+
+        row_vector[M_states] mean_currents[N_data];
+
+        vector[M_states] project_correlation[N_data];
+        vector[M_states] unit = return_vector(M_states, 1);
+        matrix[M_states,M_states]rates_mat = create_rate_matrix(theta_array,ratio,
+                                                                N_free_para,ligand_conc,
+                                                                M_states,numeric_precision);
+
+        {vector[M_states] x;
+        for(id in 1: M_states){
+               x[id] = 0;
+        }
+        x[M_states] = i_single_channel;
+            conductance_matrix = diag_matrix(x);
+        }
+        //i_single_vec = conductance_matrix *unit;
+        //i_single_squaerred_elements = conductance_matrix * conductance_matrix * unit;
+
+        i_single_vec = conductance_of_states' * i_single_channel;
+        i_single_squaerred_elements = conductance_matrix * conductance_matrix * unit;
+        for( id in 1 : N_data){
+            mean_currents[id] = occupat[id]' * conductance_matrix;
+        }
+        project_correlation[1] = i_single_vec;
+        for(id in 2: N_data){
+           project_correlation[id] = matrix_exp(rates_mat * (id - 1) * dif_time)' * i_single_vec;
+        }
+        for (row in 1 : N_data){
+            for (column in row : N_data){
+
+                /*
+                if(row == column){
+                    cov[column, row] = N_trace * (occupat[row]' * i_single_squaerred_elements
+                    - pow(occupat[row]' * i_single_vec ,2));
+                }
+
+                else{*/
+
+                cov[row, column] =  N_trace * ((mean_currents[row] * project_correlation[column-row+1])
+                - ((occupat[row]'* i_single_vec) * occupat[column]'* i_single_vec));
+
+
+                   cov[column, row] = cov[row, column];
+                //}
+            }
+        }
+
+        cov = cholesky_decompose(cov);
+        return cov;
+}
+
+
+
+vector[] calc_occupat_matrix_exp_time_series(vector starting_values,
+                                        real dif_time,
+                                        real time_off_set,
+                                        //real LATENT_TIME,
+                                        int M_states,
+                                        int N_data,
+                                        real[] theta_array,
+                                        real[] ratio,
+                                        int N_free_para,
+                                        vector ligand_conc,
+                                        real numeric_precision,
+                                        real N_trace,
+                                        vector data,
+                                        real LATENT_TIME)
+    {
+        vector[M_states]            result[N_data];
+        //vector[M_states]           scaled_result;
+        matrix[M_states,M_states]   disc_gena;
+        matrix[M_states, M_states]  off_set_generator;
+        matrix[M_states,M_states]rates_mat = create_rate_matrix(theta_array,
+                                              ratio,
+                                              N_free_para,
+                                              ligand_conc,
+                                              M_states,
+                                              numeric_precision);
+        /////////////////////////////////
+
+
+        if(dif_time < 0.0001)
+        {
+            print("Warning!!!! dif_time small: " , dif_time);
+        }
+
+        off_set_generator = matrix_exp(rates_mat * (time_off_set + 0.0002 * LATENT_TIME));
+        //off_set_generator = matrix_exp(rates_mat * (time_off_set));
+        disc_gena = matrix_exp(rates_mat * dif_time);
+
+
+        result[1] = off_set_generator * starting_values;
+        //scaled_result = scaling_result(M_states, result[1], N_trace, data[1]);
+
+        for(n in 2 : N_data)
+        {
+                //print("delta T", n);
+                result[n] = disc_gena * result[n-1];
+                //scaled_result = scaling_result(M_states, result[n], N_trace, data[n]);
+
+                //print("result[n]",);
+        }
+        return result;
+    }
+
+
+vector[] calc_occupat_matrix_exp_time_array_2(vector starting_values,
+                                        real dif_time,
+                                        real time_off_set,
+                                        //real LATENT_TIME,
+                                        int M_states,
+                                        int N_data,
+                                        real[] theta_array,
+                                        real[] ratio,
+                                        int N_free_para,
+                                        vector ligand_conc,
+                                        real numeric_precision,
+                                        real LATENT_TIME)
+    {
+        vector[M_states]            result[N_data];
+        matrix[M_states,M_states]   disc_gena;
+        matrix[M_states, M_states]  off_set_generator;
+        matrix[M_states,M_states]rates_mat = create_rate_matrix(theta_array,
+                                              ratio,
+                                              N_free_para,
+                                              ligand_conc,
+                                              M_states,
+                                              numeric_precision);
+        /////////////////////////////////
+
+
+        if(dif_time < 0.0001)
+        {
+            print("Warning!!!! dif_time small: " , dif_time);
+        }
+
+        off_set_generator = matrix_exp(rates_mat * (time_off_set + 0.0002 * LATENT_TIME));
+        off_set_generator = matrix_exp(rates_mat * (time_off_set));
+        disc_gena = matrix_exp(rates_mat * dif_time);
+
+
+        result[1] = off_set_generator * starting_values;
+        for(n in 2 : N_data)
+        {
+                result[n] = disc_gena * result[n-1];
+                //Test1 = disc_gena * Test1;
+                //print("result[n]",);
+        }
+        /////
+        // print("Sollte eine null matrix sein ",Test2-Test1);
+        return result;
+    }
+
+    vector calculate_equilibrium_solution(int M_states,
+                                       real numeric_precision,
+                                       real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    {
+
+        matrix[M_states, M_states] equilibrium;
+        vector[M_states] zero_one;
+        vector[M_states] result;
+        row_vector[M_states] ones;
+        matrix[M_states, M_states] rates = create_rate_matrix(theta_array,
+                           equili,
+                           N_free_para,
+                           ligand_conc,
+                           M_states,
+                           numeric_precision);
+
+
+
+
+        for(id in 1 : M_states){
+            ones[id] = 1;
+        }
+
+        equilibrium = rates;
+
+        equilibrium[M_states] = ones;
+
+        if(determinant(equilibrium) == 0){
+            vector[M_states] dummy = return_vector(M_states,0);
+            reject("determiant(equilibrium) = ", determinant(equilibrium));
+            return dummy;
+        }
+
+        zero_one = return_vector(M_states,0);
+        zero_one[M_states] = 1;
+
+
+        result = inverse(equilibrium) * zero_one;
+
+        if(fabs(sum(result)-1)> numeric_precision){
+                print("WARNING!");
+                print("Equilibrium solution is ill defined");
+                reject("sum(result)-1 should be = 0 but found: ",fabs(sum(result)-1));
+        }
+
+        return result;
+    }
+matrix calculate_starting_correlation(int M_states, vector Starting_values)
+{
+        matrix[M_states,M_states] starting_correlation;
+        // next line dyadische Product
+        starting_correlation = diag_matrix(Starting_values) - Starting_values * Starting_values';
+        return starting_correlation;
+    }
+
+vector[] calcLikelihood_for_each_trace(int N_free_para, real i_single_channel, int N_data,
+                    int M_states, real N_ion, real[] rates, real[] ratio,  real numeric_precision,
+                    vector ligand_conc_before_step, vector ligand_conc_after_step,
+                    real var_exp,real open_var, vector y_start, real dif_time,
+                    real y_equi,
+                    real time_offset)
+    {
+
+    vector[M_states] prob_values_before_step = calculate_equilibrium_solution(M_states, numeric_precision,
+                                                    rates, ratio, N_free_para, ligand_conc_before_step);
+
+
+
+    matrix[M_states,M_states] First_corre_mat =  calculate_starting_correlation(M_states,
+                                                                 prob_values_before_step);
+    //Different observation model examples
+    //row_vector[M_states]      conduc_state = [0,0,0,i_single_channel, i_single_channel];
+    //row_vector[M_states]      conduc_state = [0,0,0,0, i_single_channel];
+    row_vector[M_states]      conduc_state = [0,0,0, i_single_channel];
+    //row_vector[M_states]      conduc_state = [0,0,0, 0,0, i_single_channel];
+    //row_vector[M_states]        conduc_state = [0,0, i_single_channel];
+
+    matrix[M_states,M_states] rate_matrix;
+    matrix[M_states,M_states] transition_mat;
+
+    vector[2]               param_likelihood[N_data+1];
+    vector[M_states]             mu_old;
+    vector[M_states]             mu;
+
+    matrix[M_states,M_states]    corre_mat;
+
+    //print("prob_values_before_step", prob_values_before_step);
+    param_likelihood[1] = calc_sigma_and_mean(N_ion, conduc_state, prob_values_before_step,
+                                            First_corre_mat, var_exp,open_var, i_single_channel);
+   /*if(param_likelihood[1,1]<0){
+                 reject("first mean<0", param_likelihood[1]);
+             }*/
+    mu = update_mu_due_measurement(M_states, conduc_state, prob_values_before_step, First_corre_mat,
+                                  y_equi, param_likelihood[1], numeric_precision);
+           //print("mu after measurment",mu);
+
+           mu_old = mu;
+
+           rate_matrix = create_rate_matrix(rates, ratio, N_free_para,
+                           ligand_conc_after_step, M_states, numeric_precision);
+
+           transition_mat = matrix_exp(rate_matrix * time_offset);
+
+           for(i in 1 : M_states){
+                if(fabs(sum(transition_mat[:,i])-1) > numeric_precision){
+                    print("sum Transition mat column",fabs(sum(transition_mat[:,i])-1));
+           }}
+
+           mu = propagate_mu_in_time(M_states, mu_old, transition_mat, numeric_precision);
+
+
+           corre_mat = update_correlation_matrix(M_states, N_ion,
+                                               param_likelihood[1], conduc_state,
+                                               First_corre_mat, transition_mat, mu, mu_old);
+
+           transition_mat = matrix_exp(rate_matrix*dif_time);
+
+        for(n_data in 1: N_data)
+             {
+             param_likelihood[n_data+1] = calc_sigma_and_mean(N_ion,
+                                                conduc_state, mu, corre_mat, var_exp, open_var, i_single_channel);
+             /*if(mu[4]<0){
+                 //print("mu",mu);
+                 //print("n_data",n_data)
+                 reject("mean<0", param_likelihood[n_data+1]);
+             }*/
+
+             mu = update_mu_due_measurement(M_states, conduc_state, mu, corre_mat,
+                                            y_start[n_data], param_likelihood[n_data+1],
+                                            numeric_precision);
+             //print("mu after measurment",mu);
+             mu_old = mu;
+             mu = propagate_mu_in_time(M_states, mu_old, transition_mat, numeric_precision);
+             //print("mu after time",mu);
+             corre_mat = update_correlation_matrix(M_states, N_ion,
+                                               param_likelihood[n_data+1],
+                                               conduc_state, corre_mat,
+                                               transition_mat, mu, mu_old);
+             }
+    return param_likelihood;
+    }
+
+real add_prior_info_equilibrium(real alpha,real  beta,
+                                int M_states,
+                                real numeric_precision,
+                                       real[] rates,
+                           real[] ratio,
+                           int N_free_para,
+                           vector ligand_conc){
+    real prob_output;
+
+    vector[M_states] prob_vector = calculate_equilibrium_solution(M_states, numeric_precision,
+                                                    rates, ratio, N_free_para, ligand_conc);
+
+    prob_output = beta_lpdf(prob_vector[4]| alpha, beta);
+    return prob_output;
+}
+
+    vector wrapped_calcLikelyhood(vector params, vector ingnoreMe, real[] x_r, int[] x_i){
+       // unbox integer data
+       int N_free_para = x_i[1];
+       int N_data = x_i[2];
+       int M_states = x_i[3];
+       int id =  x_i[4];
+       int N_conc = x_i[5];
+       int current;
+       vector[N_data] y_start;
+       real y_equi;
+       real dif_time;
+       real off_set;
+       vector[N_free_para] ligant_start;
+       vector[N_free_para] ligant_current;
+       real numeric_precision;
+       real i_single_channel;
+       real rates[N_free_para/2];
+       real ratio[N_free_para/2];
+       real N_ion_trace[N_conc];
+       real var_exp;
+       real open_var;
+       real var_fluoresc;
+       real lambda_fluoresc;
+       vector[2] result[N_data+1];
+       real SumLogLike[N_data+1];
+       real LogLikeTrace;
+       vector[2*(N_data+1)+1+(N_data+1)] flattend_result;
+
+
+
+
+
+       // unbox real data
+       current = 1;
+
+       for (n_data in 1: N_data)
+       {
+         y_start[n_data] = x_r[current];
+         current += 1;
+       }
+
+
+       y_equi = x_r[current];
+       current += 1;
+
+       dif_time = x_r[current];
+       current += 1;
+
+       off_set = x_r[current];
+       current += 1;
+
+       ligant_start  = to_vector(x_r[current:current+N_free_para-1]);
+       current += N_free_para;
+
+       ligant_current  = to_vector(x_r[current:current+N_free_para-1]);
+       current += N_free_para;
+
+       numeric_precision  = x_r[current];
+       current += 1;
+
+       // unbox parameters
+       current = 1;
+       for(i in 1 : N_free_para/2)
+       {
+        rates[i] = params[current];
+        current+=1;
+       }
+
+       for(i in 1 : N_free_para/2)
+       {
+        ratio[i] = params[current];
+        current+=1;
+       }
+       for(i in 1 : N_conc/2)
+       {
+        N_ion_trace[i] = params[current];
+        current+=1;
+       }
+       i_single_channel  = params[current];
+       current+=1;
+       var_exp  = params[current];
+       current+=1;
+
+       open_var  = params[current];
+       current+=1;
+
+        {int n_id;
+        if (id <= 2*N_conc){
+            n_id = id;
+            if(id > 5.5){
+                n_id = 6 - ( id - 5);
+            }
+        }
+        else{
+            n_id = id - 2*N_conc;
+            if(n_id > 5.5){
+                n_id = 6- (n_id -5);
+            }
+        }
+       result = calcLikelihood_for_each_trace(N_free_para,
+                                              i_single_channel, N_data, M_states,
+                                              N_ion_trace[n_id],
+                                              rates,
+                                              ratio,
+                                              numeric_precision,
+                                              ligant_start,
+                                              ligant_current,
+                                              var_exp,
+                                              open_var,
+                                              y_start, dif_time,
+                                              y_equi,
+                                              off_set);
+       //calc log like
+       }
+        SumLogLike[1] = normal_lpdf(y_equi|result[1,1], sqrt(result[1,2]));
+
+
+       for(n_data in 1: N_data)
+             {
+             SumLogLike[n_data+1] = normal_lpdf(y_start[n_data]|result[n_data+1,1], sqrt(result[n_data+1,2]));
+             }
+        if(id <= 2* N_conc){
+            LogLikeTrace = sum(SumLogLike);
+        }
+
+       /*{
+        /////Test
+       vector[N_data] Test;
+       for(n_data in 1: N_data)
+             {
+             SumLogLike[n_data+1] = normal_lpdf(y_start[n_data]|result[n_data+1,1], sqrt(result[n_data+1,2]));
+             Test[n_data] = pow(y_start[n_data]-result[n_data+1,1],2)/result[n_data+1,2];
+             }
+        if(id <= 2* N_conc){
+            LogLikeTrace = sum(SumLogLike)+ chi_square_lpdf(sum(Test) | N_data);
+        }
+        }*/
+        ///
+      current = 1;
+      for (i in 1: 2)
+      {
+          for (k in 1: N_data+1)
+          {
+            flattend_result[current] = result[k,i];
+            current +=1;
+          }
+      }
+
+      flattend_result[current] = LogLikeTrace;
+      current +=1;
+      for(i in 1: N_data+1){
+        flattend_result[current] = SumLogLike[i];
+        current +=1;
+      }
+
+      return flattend_result;
+      }
+
+
+vector wrapped_calcLikelyhood_less_memo(vector params, vector ingnoreMe, real[] x_r, int[] x_i){
+       // unbox integer data
+       int N_free_para = x_i[1];
+       int N_data = x_i[2];
+       int M_states = x_i[3];
+       int id =  x_i[4];
+       int N_conc = x_i[5];
+       int current;
+       vector[N_data] y_start;
+       real y_equi;
+       real dif_time;
+       real off_set;
+       vector[N_free_para] ligant_start;
+       vector[N_free_para] ligant_current;
+       real numeric_precision;
+       real i_single_channel;
+       real rates[N_free_para/2];
+       real ratio[N_free_para/2];
+       real N_ion_trace[N_conc];
+       real var_exp;
+       real open_var;
+       real var_fluoresc;
+       real lambda_fluoresc;
+       vector[2] result[N_data+1];
+       real SumLogLike[N_data+1];
+       real LogLikeTrace;
+       vector[1] flattend_result;
+
+
+
+
+
+       // unbox real data
+       current = 1;
+
+       for (n_data in 1: N_data)
+       {
+         y_start[n_data] = x_r[current];
+         current += 1;
+       }
+
+
+       y_equi = x_r[current];
+       current += 1;
+
+       dif_time = x_r[current];
+       current += 1;
+
+       off_set = x_r[current];
+       current += 1;
+
+       ligant_start  = to_vector(x_r[current:current+N_free_para-1]);
+       current += N_free_para;
+
+       ligant_current  = to_vector(x_r[current:current+N_free_para-1]);
+       current += N_free_para;
+
+       numeric_precision  = x_r[current];
+       current += 1;
+
+       // unbox parameters
+       current = 1;
+       for(i in 1 : N_free_para/2)
+       {
+        rates[i] = params[current];
+        current+=1;
+       }
+
+       for(i in 1 : N_free_para/2)
+       {
+        ratio[i] = params[current];
+        current+=1;
+       }
+       for(i in 1 : N_conc/2)
+       {
+        N_ion_trace[i] = params[current];
+        current+=1;
+       }
+       i_single_channel  = params[current];
+       current+=1;
+       var_exp  = params[current];
+       current+=1;
+
+       open_var  = params[current];
+       current+=1;
+
+        {int n_id;
+        if (id <= 2*N_conc){
+            n_id = id;
+            if(id > 5.5){
+                n_id = 6 - ( id - 5);
+            }
+        }
+        else{
+            n_id = id - 2*N_conc;
+            if(n_id > 5.5){
+                n_id = 6- (n_id -5);
+            }
+        }
+       result = calcLikelihood_for_each_trace(N_free_para,
+                                              i_single_channel, N_data, M_states,
+                                              N_ion_trace[n_id],
+                                              rates,
+                                              ratio,
+                                              numeric_precision,
+                                              ligant_start,
+                                              ligant_current,
+                                              var_exp,
+                                              open_var,
+                                              y_start, dif_time,
+                                              y_equi,
+                                              off_set);
+       //calc log like
+       }
+        SumLogLike[1] = normal_lpdf(y_equi|result[1,1], sqrt(result[1,2]));
+
+
+
+       for(n_data in 1: N_data)
+             {
+
+             /*if (result[n_data+1,1]< 0){
+             reject("result < 0", n_data,result[n_data+1,1]);
+             }*/
+
+             if (result[n_data+1,2]< 0){
+             reject("result < 0", n_data, result[n_data+1,2],result[n_data+1,1]);
+             }
+             SumLogLike[n_data+1] = normal_lpdf(y_start[n_data]|result[n_data+1,1], sqrt(result[n_data+1,2]));
+             }
+        if(id <= 2* N_conc){
+            LogLikeTrace = sum(SumLogLike);
+        }
+      flattend_result[1] = LogLikeTrace;
+      //flattend_result[1] += add_prior_info_equilibrium();
+      return flattend_result;
+      }
+}
+data {
+    /*Structure of the Data...............................*/
+    int<lower = 10, upper = 10> N_conc;                        // how many concetrations
+    int<lower = 5, upper = 1000> N_data[2];                   // how many data elements per concentratrion
+    int<lower = 10, upper = 4000000> N_ion_ch;                // how many channels
+    int<lower = 1, upper = 10>  N_cross_vali;
+
+    /*The Data...........................................*/
+    vector<lower = -20, upper = N_ion_ch>[N_data[1]]       y_start[N_conc];           //response variable array
+    vector<lower = -20, upper = 150>[N_conc]                y_equi_before_jump;
+    real<lower = 0.00001, upper = 0.2>                     dif_time[N_conc];
+
+    vector<lower = -20, upper = N_ion_ch>[N_data[2]]       y_dec[N_conc];
+    vector<lower = -20, upper = N_ion_ch>[N_conc]            y_equi_after_jump;
+    real<lower = 0.00001, upper = 0.4>                     dif_time_dec[N_conc];
+
+    real<lower = 0.0, upper = 0.005>        time_off_set_dec[N_conc];
+    real<lower = 0.0000, upper = 1>       off_set_time_arr[N_conc];
+
+    /*Cross validation informmation*/
+    vector<lower = -20, upper = N_ion_ch>[N_data[1]]       y_start_hold[N_conc];
+    vector<lower = -20, upper = N_ion_ch>[N_data[2]]       y_dec_hold[N_conc];
+    vector<lower = -20,   upper = N_ion_ch>[N_conc]       y_equi_after_jump_hold;
+    vector<lower = -20, upper = 50>[N_conc]             y_equi_before_jump_hold;
+
+    /*The patch..........................................*/
+
+    /*Pior information...................................*/
+    /*Model declaration..................................*/
+    int<lower = 2> M_states;
+    //special to simpliest connected models...............
+    int<lower = 4, upper =  (M_states)*2>             N_free_para;
+    vector<lower = 0, upper = 250>[N_free_para]                      ligand_conc[N_conc+1];
+    vector<lower = 0, upper = 1> [N_free_para]                      ligand_conc_decay[N_conc];
+    //row_vector<lower = 0, upper = 1>[M_states]                      conductance_of_states;
+    //int<lower = 0, upper = 45> SUM_N_traces;
+    //real<lower = 0, upper = 100> var_exp_hat;
+    //real<lower = 0, upper = 10> var_open_hat;
+    real<lower = 0, upper = 100>                                        var_hat_mean;
+    real<lower = 0, upper = 100>                                baseline_variance_std;
+}
+
+
+transformed data{
+
+    real numeric_precision = 10^-6;
+    real  Upper_space_lim = 0.99999;
+    //print("off_set_time_arr = ", off_set_time_arr);
+
+   int resultFlattSize = max(N_data[1],N_data[2])+5+2*N_free_para;
+   //2*2 since training and validation data
+   real trans_real[2*2 * N_conc, resultFlattSize];
+   int trans_int[2*2 * N_conc, 5];//+ 2*N_conc];
+    print("Its fucking parallel version");
+    for(id in 1 : N_conc)
+    {
+     trans_real[id,:]= flattenDataPatch(y_start[id],
+                        y_equi_before_jump[id],
+                        dif_time[id],
+                        off_set_time_arr[id],
+                        ligand_conc[1],
+                        ligand_conc[1+id],
+                        numeric_precision,
+                        N_data[1],N_free_para,resultFlattSize);
+    }
+    for(id in 1 : N_conc)
+    {
+     trans_real[id+N_conc,:]= flattenDataPatch(y_dec[id],
+                                          y_equi_after_jump[id],
+                                          dif_time_dec[id],
+                                          time_off_set_dec[id],
+                                          ligand_conc[id+1],
+                                          ligand_conc_decay[id],
+                                          numeric_precision
+                                          ,N_data[2],N_free_para,resultFlattSize);
+    }
+
+    for(id in 1 : N_conc)
+    {
+     trans_real[id+2*N_conc,:]= flattenDataPatch(y_start_hold[id],
+                        y_equi_before_jump_hold[id],
+                        dif_time[id],
+                        off_set_time_arr[id],
+                        ligand_conc[1],
+                        ligand_conc[1+id],
+                        numeric_precision,
+                        N_data[1],N_free_para,resultFlattSize);
+    }
+    for(id in 1 : N_conc)
+    {
+     trans_real[id+3*N_conc,:]= flattenDataPatch(y_dec_hold[id],
+                                          y_equi_after_jump_hold[id],
+                                          dif_time_dec[id],
+                                          time_off_set_dec[id],
+                                          ligand_conc[id+1],
+                                          ligand_conc_decay[id],
+                                          numeric_precision
+                                          ,N_data[2],N_free_para,resultFlattSize);
+    }
+
+
+
+
+    for(id in 1 : 4*N_conc)
+    {
+      trans_int[id,1] = N_free_para;
+
+      if (id <= 2*N_conc){
+        if (id <= N_conc)
+        {
+            trans_int[id,2] = N_data[1];
+            trans_int[id,4] = id;
+            //for(kd in 6:6+ 2*N_conc){
+            //    trans_int[id,kd] = alpha[kd-6]
+            //}
+
+        }
+        else
+        {
+            trans_int[id,2] = N_data[2];
+            trans_int[id,4] = id - N_conc;
+        }
+       }
+       else
+       {
+        if (id <= 3*N_conc)
+        {
+            trans_int[id,2] = N_data[1];
+            trans_int[id,4] = id;
+        }
+        else
+        {
+            trans_int[id,2] = N_data[2];
+            trans_int[id,4] = id - N_conc;
+        }
+       }
+
+
+
+
+        trans_int[id,3] = M_states;
+
+        trans_int[id,5] = N_conc;
+    }
+
+        
+}
+
+parameters {
+            real<lower = 0, upper = Upper_space_lim>                                        log_dwell_times[N_free_para/2];
+            real<lower = 0.001, upper = 0.999>                                                    ratio[N_free_para/2];
+            real<lower = N_ion_ch - N_ion_ch * 0.1,
+                    upper = N_ion_ch + N_ion_ch*0.1>                         N_ion_trace[N_conc/2];
+            real<lower = 0.9, upper = 1.1>                                                i_single_channel;
+            //real<lower = var_exp_hat-var_exp_hat*0.5, upper = var_exp_hat + var_exp_hat>    var_exp;
+
+            real<lower = var_hat_mean-1*baseline_variance_std, upper = var_hat_mean+1*baseline_variance_std>    var_exp;
+            //real<lower = 0.0, upper = var_open_hat*2>                                             open_variance;
+            real<lower = var_hat_mean/30, upper = var_hat_mean>                                                            open_variance;
+
+            }
+
+
+
+transformed parameters {
+     /*2 different data types and covaricance of these makes a 2*3 container for each of the N_data timesteps*/
+                        //vector<lower = 0>[2]                param_likelihood_start[N_conc, N_data[1]+1];
+                        //vector<lower = 0>[2]                param_likelihood_decay[N_conc,  N_data[2]+1];
+    vector<upper = 0> [2*N_conc]        SummandsLogLikTraces;
+                        //vector[N_data[1]+N_data[2]+2]       log_lik_t[N_conc];
+                        //Holdout
+                        //vector[2]                           ParamLikeliStartHoldout[N_conc, N_data[1]+1];
+                        //vector[2]                           ParamLikeliDecayHoldout[N_conc, N_data[2]+1];
+                        //vector<upper = 0> [2*N_conc]        SummandsLogLikTracesHoldout
+                        //vector[N_data[1]+N_data[2]+2]       logLikHoldout[N_conc];
+
+
+    {int current;
+    real dwell_time[N_free_para/2];
+    vector[0]                                                              theta[N_conc*4];   // job specific, ignore me
+                                    //3 because mean and sigma and total probabiltiy for each datapoint
+                                    //int lenght_result = 4*N_conc*(3*(N_data[1]+1)+1);
+    int lenght_result = 4*N_conc;
+                                    //+N_conc*(2*(N_data[2]+1)+1+(N_data[2]+1));
+    vector[lenght_result] result;
+
+    vector[N_free_para+ N_conc/2 + 3] flattendParameters;
+
+    for( i in 1:N_free_para/2){
+        dwell_time[i] = pow(10, 4 * log_dwell_times[i]);
+    }
+
+    dwell_time[1] = pow(10,3.14612803568* log_dwell_times[1]);
+    //dwell_time[2] = pow(10, 2.84509804001 * log_dwell_times[2]);
+
+
+
+    flattendParameters = flattenParameterProposal(i_single_channel,dwell_time,ratio,N_ion_trace,
+                                                    var_exp, open_variance, N_free_para, N_conc);
+
+    result = map_rect( wrapped_calcLikelyhood_less_memo,  flattendParameters, theta, trans_real, trans_int);
+
+    SummandsLogLikTraces[1:2*N_conc] = result[1:2*N_conc];
+
+
+    /*current =1;
+    for(id in 1: N_conc)
+    {
+      for (i in 1: 2)
+      {
+          for (k in 1: N_data[1]+1)
+          {
+            param_likelihood_start[id,k,i] = result[current];
+            current+=1;
+          }
+      }
+     SummandsLogLikTraces[id] = result[current];
+     current +=1;
+     for(i in 1 :N_data[1]+1){
+        log_lik_t[id,i] = result[current];
+        current +=1;
+    }
+    }*/
+
+
+    //decay of the current
+    /*for(id in 1: N_conc)
+    {
+      for (i in 1: 2)
+      {
+          for (k in 1: N_data[2]+1)
+          {
+            param_likelihood_decay[id,k,i] = result[current];
+            current+=1;
+          }
+      }
+      SummandsLogLikTraces[id+N_conc] = result[current];
+      current +=1;
+      for(i in 1 :N_data[2]+1){
+        log_lik_t[id,i+N_data[1]+1] = result[current];
+        current +=1;
+      }
+
+    }*/
+
+
+    // holdout data cross validation
+    /*for(id in 1: N_conc)
+    {
+      for (i in 1: 2)
+      {
+          for (k in 1: N_data[1]+1)
+          {
+            ParamLikeliStartHoldout[id,k,i] = result[current];
+            current+=1;
+          }
+      }
+     //SummandsLogLikTracesHoldout[id] = result[current];
+     current +=1;
+     for(i in 1 :N_data[1]+1){
+        logLikHoldout[id,i] = result[current];
+        current +=1;
+    }
+    }*/
+    /*for(id in 1: N_conc)
+    {
+      for (i in 1: 2)
+      {
+          for (k in 1: N_data[2]+1)
+          {
+            ParamLikeliDecayHoldout[id,k,i] = result[current];
+            current+=1;
+          }
+      }
+      //SummandsLogLikTracesHoldout[id+N_conc] = result[current];
+      current +=1;
+      for(i in 1 :N_data[2]+1)
+      {
+        logLikHoldout[id,i+N_data[1]+1] = result[current];
+        current +=1;
+      }
+    }*/
+    }
+}
+
+
+model{
+
+
+    log_dwell_times[1] ~ beta(1.000, 1.000);//uniform(0,Upper_space_lim); //normal(100,100);// //
+    //rates[2] ~ uniform(0,Upper_space_lim); //normal(500,500);//
+    //rates[3] ~ uniform(0,Upper_space_lim); //normal(10,10);//
+    //rates[4] ~ uniform(0,Upper_space_lim);
+    //rates[5] ~ uniform(0,Upper_space_lim);
+
+    ratio[1] ~ beta(1.001, 1.001)T[0.001,0.999];    //1.001
+    ratio[2] ~ beta(1.001, 1.001)T[0.001,0.999];
+    ratio[3] ~ beta(1.001, 1.001)T[0.001,0.999];
+
+    var_exp ~ normal(var_hat_mean, baseline_variance_std)T[var_hat_mean-1*baseline_variance_std,var_hat_mean+1*baseline_variance_std];
+
+    //open_variance ~ normal(pow(var_open_hat,2),pow(var_open_hat,2)*0.001)T[0,];
+    i_single_channel ~ normal(1,0.01)T[0.9,1.1];
+
+    target += sum(SummandsLogLikTraces);
+
+
+}
+
+generated quantities{
+}
