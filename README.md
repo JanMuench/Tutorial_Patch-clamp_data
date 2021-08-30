@@ -49,10 +49,20 @@ Step by step:
 	ensemble state. If more than  two conducting classes (non-conducting and conducting) are
 	modeled, additional single-channel current parameters need to be defined in the parameters block.
 
-	5.2 The function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters from the parameters block and computes 		the rates of the rate matrix. They are then passed to the “assign_param_to_rate_matrix_CCCO” function. Note that this example 					code has four dwell times as parameters and two ratios from them the six 					rates are constructed. We recommend to use a log uniform prior for the 					dwell time and a beta distribution or rather a Dirichlet distribution for the 				probabilities which transition is taken.
-5.3 The function “assign_param_to_rate_matrix_CCCO” assigns rates to 	the off diagonal elements. Note that a closed first order Markov system requires that each diagonal element is the negative sum of its column. That property is enforced in function “assign_diagonal_elements”. Note that this is redundant as we start in the 	parameters block with the dwell times as parameters. But we could have chosen a different parametrization to begin with. We argue in the paper to use this parametrisation in order to use a Jeffreys prior but there a couple of other options.
-			5.4 The mean observation needs to be changed in line 806
-			5.5 If the amount of open-channel states with differing open-channel noise 				variances for each state needs to be calculated,  the function 						“calc_sigma_and_mean” must be adapted
+	5.2 The function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters from
+	the parameters block and computes the rates of the rate matrix. They are then passed to the 
+	“assign_param_to_rate_matrix_CCCO” function. Note that this example code has four dwell times as parameters and two 
+	ratios from them the six rates are constructed. We recommend to use a log uniform prior for the 
+	dwell time and a beta distribution or rather a Dirichlet distribution for the 	probabilities which transition is taken.
+	5.3 The function “assign_param_to_rate_matrix_CCCO” assigns rates to 	the off diagonal elements. Note that 
+	a closed first order Markov system requires that each diagonal element is the negative sum of its column. 
+	That property is enforced in function “assign_diagonal_elements”. Note that this is redundant as we start 
+	in the 	parameters block with the dwell times as parameters. But we could have chosen a different 
+	parametrization to begin with. We argue in the paper to use this parametrisation in order to use a 
+	Jeffreys prior but there a couple of other options.
+	5.4 The mean observation needs to be changed in line 806
+	5.5 If the amount of open-channel states with differing open-channel noise variances for each state needs to be calculated,
+	the function “calc_sigma_and_mean” must be adapted
 
 
 Although we recommend to have the dwell times (diagonal elements of the rate matrix) as parameters, we recalculate them which is reminiscent of former parameterizations.  
