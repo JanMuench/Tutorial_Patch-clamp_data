@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Münch"
+  given-names: "Jan L."
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Paul"
+  given-names: "Fabian"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+  - family-names: "Schmauder"
+  given-names: "Ralf"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+    - family-names: "Benndorf"
+  given-names: "Klaus"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "Tutorial_Patch-clamp_data"
+version: 1.0.0
+doi: 10.5281/zenodo.1234
+date-released: 2021-10-28
+url: "https://github.com/JanMuench/Tutorial_Patch-clamp_data"
