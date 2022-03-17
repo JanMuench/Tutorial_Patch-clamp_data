@@ -3,7 +3,7 @@ This tutorial is an example code for patch-clamp measurements which is part of t
 
 The package contains a file containing the STAN code “KF.txt” as well as the python script  “compile_CCCCO_normal_split.py” to compile the code.  Finally, a Python script “sample_PC_data.py” which acts as the interface between the data and the sampler. To adapt the code to your data, basic Stan programming skills are required. The Python knowledge and the Python scripts are not obligatory, because Stan can interact many high level data analysis programming languages (R, Python, shell, MATLAB, Julia, Stata) .  
 
-The topology of the kinetic scheme is uniquely defined by a rate matrix. Our example code demonstrates the analysis with a two ligand-gated 4 state model of patch-clamp data. The rate matrix is defined by the lines 543-563 in the file “KF.txt”. The mean observation is defined in line 806 with the vector variable “conduc_state”. 
+The topology of the kinetic scheme is uniquely defined by a rate matrix. Our example code demonstrates the analysis with a two ligand-gated 4 state model of patch-clamp data. The rate matrix is defined by the lines 543-563 in the file “KF.txt”. The mean observation matrix is defined in line 806 with the vector variable “conduc_state”. 
 
 Step by step:
 
