@@ -44,6 +44,30 @@ Step by step:
 	5. To adapt the kinetic scheme one needs to change a few things within KF.txt  which are 
 	the observation model matrix H and the functions related to the kinetic scheme. Then 
 	“KF.txt” needs to be recompiled:
+		As an example the function:
+			matrix assign_param_to_rate_matrix_CCCO(vector theta, int M_states)
+    			{
+        			matrix[M_states, M_states] rates_mat;
+        			rates_mat    = [[      0 , theta[1],        0,         0],
+                        			[theta[2],        0, theta[3],         0],
+                        			[       0, theta[4],        0,  theta[5]],
+                        			[       0,        0,  theta[6],        0]];
+
+
+
+        			return rates_mat;
+    			}
+	
+		gets the vector variabel "theta" with the rates and an int variabel "M_states"
+		with the Number of Markov states. It defines the topology of the kinetic scheme by
+		the independent non-zero coefficients. Thus we defined here a 4x4 rate matrix with 
+		6 chemical reaction channels which describe the kinetic scheme of the ion channel.
+		Each ion channel has 2 states it is directly connected with by one transition (graph)
+		Only the first and the fourth state one only one ajacent state.
+		We chose the notation where the matrix acts onto the a column vector to its right 
+		which means the each coloumn of the rate matrix needs to be sum to zero. This happens 
+		in the following function.
+	
 	5.1. The row vector “conduc_state” needs to  be changed to the desired signal model. It 
 	represents the matrix H of the 	article which generates the mean signal for a given 
 	ensemble state. If more than  two conducting classes (non-conducting and conducting) are
