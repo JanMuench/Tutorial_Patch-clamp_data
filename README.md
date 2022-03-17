@@ -43,7 +43,7 @@ Step by step:
 
 	5. To adapt the kinetic scheme one needs to change a few things within KF.txt  which are 
 	the observation model matrix H and the functions related to the kinetic scheme. Then 
-	“KF.txt” needs to be recompiled:
+	“KF.txt” needs to be recompiled. The rate matrix is defined in the function "create_rate_matrix" (line 546)
 		As an example the function:
 			matrix assign_param_to_rate_matrix_CCCO(vector theta, int M_states)
     			{
@@ -66,11 +66,78 @@ Step by step:
 		Only the first and the fourth state one only one ajacent state.
 		We chose the notation where the matrix acts onto the a column vector to its right 
 		which means the each coloumn of the rate matrix needs to be sum to zero. This happens 
-		in the following function.
+		in the following function "assign_diagonal_elements(rates,M_states, numeric_precision);".
+		
+		To change the topologie of the knietic scheme from a 4 state to 5 state knietic scheme 
+		with a loop structure you could define a function such as this
+		
+			matrix assign_param_to_rate_matrix_CCO_CO(vector theta,
+                                   int M_states)
+    			{
+        			matrix[M_states, M_states] rates_mat;
+        			rates_mat    = [[      0 , theta[1],        0,         0,             0],
+                        			[theta[2],        0, theta[3],         0,      theta[7]],
+                        			[       0, theta[4],        0,  theta[5],             0],
+                        			[       0,        0,  theta[6],        0,      theta[9]],
+                        			[       0, theta[8],        0, theta[10],             0]];
+
+
+
+        			return rates_mat;
+    			}
+		
+		Remember that each i-th row shows you the transitions out of i-th state. Thus you can read 
+		from this matrix: The first state transitions into the second. 	
+				  The second transitions into the first, the third and the fifth
+				  The third trsnasitions into the second and forth.
+				  The forth into the third and the fifth
+				  The fifth into the second and fourth.
+		
+		Now obvisously that we changed the fuction name which defines the kinetic scheme 
+		we have to change the name also in the place where the function is called
+		
+			matrix create_rate_matrix(real[] theta_array,
+                           			  real[] ratios,
+                           			  int N_free_para,
+                           			  vector ligand_conc,
+                        			  int M_states,
+                        			  real numeric_precision)
+		      	{
+
+        			matrix[M_states,M_states] rates;
+        			vector[N_free_para] theta_vec = multiply_ligandconc_CCCO_log_uniform(theta_array,
+                           				ratios,
+                           				N_free_para,
+                           				ligand_conc);
+
+        			rates = assign_param_to_rate_matrix_CCCO(theta_vec, M_states);
+
+        			rates  = assign_diagonal_elements(rates,M_states,
+                                    numeric_precision);
+
+        			return rates;
+    			}
+    
+    So instead of "assign_param_to_rate_matrix_CCCO" here in line 112 we have to change it to 				     "assign_param_to_rate_matrix_CCO_CO" in KF.txt file. The KF.txt file gets the number of Markov states
+    as an input from the python script which starts the the sampling.
+    
+    There some rates in our example whose value scales linearly with the ligand concentration we calculate these aspects     in the very first function call "multiply_ligandconc_CCCO_log_uniform" in the function "create_rate_matrix"
+    The function gets the parameters which define the rate matrix in the following and a array 
+    which consist of entries which equal ones and entries which equal the ligand concentration.
+    For each ligand concentration one array. The arrays of igand concentrations are define in
+    the folder "data" in the files ligand_conc.txt for the acivation and ligand_conc_decay.txt for the deactivation
+    
+		
 	
-	5.1. The row vector “conduc_state” needs to  be changed to the desired signal model. It 
+     5.1. The row vector “conduc_state” needs to  be changed to the desired signal model. It 
 	represents the matrix H of the 	article which generates the mean signal for a given 
-	ensemble state. If more than  two conducting classes (non-conducting and conducting) are
+	ensemble state but also adds covariance to signal due the fact that the true system state is unkown.
+	In the function "calcLikelihood_for_each_trace" in line 812 we defined the linear observation matrix
+	as a row vector whose:
+		row_vector[M_states]      conduc_state = [0,0,0, i_single_channel];
+	The fourth state is in this case the conducting state.
+	
+	If more than  two conducting classes (non-conducting and conducting) are
 	modeled, additional single-channel current parameters need to be defined in the parameters block.
 
 	5.2 The function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters from
