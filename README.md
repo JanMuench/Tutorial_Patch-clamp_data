@@ -41,9 +41,65 @@ Step by step:
 	4.4 The samples of the open-channel variance parameter are saved in the numpy array file “open_variance.npy”.
 	4.5 The samples of the “Ion channels per time trace parameter” are saved in the numpy array file “N_traces.npy”.
 
-	5. To adapt the kinetic scheme one needs to change a few things within KF.txt  which are 
-	the observation model matrix H and the functions related to the kinetic scheme. Then 
-	“KF.txt” needs to be recompiled. The rate matrix is defined in the function "create_rate_matrix" (line 546)
+	5. To adapt the kinetic scheme one needs to change two matrix within KF.txt: the rate marix and observation 		matrix which defines which states are conducting and the functions related to the kinetic scheme. After all 		changes to the STAN  programm “KF.txt” needs to be recompiled.
+	
+	5.1 The function
+		matrix create_rate_matrix(real[] theta_array,
+                           			  real[] ratios,
+                           			  int N_free_para,
+                           			  vector ligand_conc,
+                        			  int M_states,
+                        			  real numeric_precision)
+		  {
+
+        		matrix[M_states,M_states] rates;
+        		vector[N_free_para] theta_vec = multiply_ligandconc_CCCO_log_uniform(theta_array,
+                           				ratios,
+                           				N_free_para,
+                           				ligand_conc);
+
+        		rates = assign_param_to_rate_matrix_CCCO(theta_vec, M_states);
+
+        		rates  = assign_diagonal_elements(rates,M_states,
+                                    numeric_precision);
+
+        		return rates;
+    		 }
+	
+	defines the rate matrix:
+	First the,  function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters 		from the parameters block and computes the rates of the rate matrix:
+		vector multiply_ligandconc_CCCO_log_uniform(real[] theta_array,
+                           real[] equili,
+                           int N_free_para,
+                           vector ligand_conc)
+    		{
+
+        		vector[N_free_para] theta;
+        		//print("ratio: ", theta_array[6]);
+        		theta[2] = theta_array[1];
+
+
+        		theta[4] = theta_array[2] ;
+        		theta[1] = theta[4]/ (1-equili[1]) * equili[1];
+
+
+        		theta[3] = theta_array[3] * equili[2];
+        		theta[6] = theta_array[3] * (1- equili[2]);
+        		theta[5] = pow(10,(4.7* equili[3]-1));
+
+        		return theta .* ligand_conc;
+    		}
+	There some rates in our example whose value scales linearly with the ligand concentration
+	Add the end of the function (line 88) the rates are mutliplied elementwise with the the respective 			ligandconcentration or 	simply with one if they are not ligand concentration depended. The return 
+	variabels are then passed to the “assign_param_to_rate_matrix_CCCO” function. Note that this 
+	example code has four dwell times as transition parameters and two probabilities from them the six 
+	rates are constructed. We recommend to use a log uniform prior for the dwell time and a beta distribution or 		rather a Dirichlet distribution for the probabilities which transition is taken.
+	The function gets the inforation which rate is ligand concentration depended from a array 
+    	which consist of entries which equal ones and entries which equal the ligand concentration.
+    	Note, that for each ligand concentration here exist one array which gets distributed to the CPU on the upper 		level of the stan programm. Thus on this level every function is programme just if there was only one ligand 		concentration. The arrays of ligand concentrations are define in
+    	the folder "data" in the files ligand_conc.txt for the acivation and ligand_conc_decay.txt for the deactivation
+	
+	The rate matrix is defined in the next following function "assign_param_to_rate_matrix_CCCO" in 			"create_rate_matrix" (line 61)
 		As an example the function:
 			matrix assign_param_to_rate_matrix_CCCO(vector theta, int M_states)
     			{
@@ -59,17 +115,17 @@ Step by step:
     			}
 	
 		gets the vector variabel "theta" with the rates and an int variabel "M_states"
-		with the Number of Markov states. It defines the topology of the kinetic scheme by
+		with the Number of Markov states. "M_states is" It defines the topology of the kinetic scheme by
 		the independent non-zero coefficients. Thus we defined here a 4x4 rate matrix with 
 		6 chemical reaction channels which describe the kinetic scheme of the ion channel.
-		Each ion channel has 2 states it is directly connected with by one transition (graph)
-		Only the first and the fourth state one only one ajacent state.
-		We chose the notation where the matrix acts onto the a column vector to its right 
+		Each ion channel has 2 states it is directly connected with by one transition 
+		(monomolocular chemical  reaction). Only the first and the fourth state have only 
+		one ajacent state. We chose the notation where the matrix acts onto the a column vector to its right 
 		which means the each coloumn of the rate matrix needs to be sum to zero. This happens 
 		in the following function "assign_diagonal_elements(rates,M_states, numeric_precision);".
 		
-		To change the topologie of the knietic scheme from a 4 state to 5 state knietic scheme 
-		with a loop structure you could define a function such as this
+		To change the topology of the kinetic scheme from a 4 state to 5 state kinetic scheme 
+		with a loop structure you we change the function (an rename it)
 		
 			matrix assign_param_to_rate_matrix_CCO_CO(vector theta,
                                    int M_states)
@@ -93,67 +149,27 @@ Step by step:
 				  The forth into the third and the fifth
 				  The fifth into the second and fourth.
 		
-		Now obvisously that we changed the fuction name which defines the kinetic scheme 
-		we have to change the name also in the place where the function is called
-		
-			matrix create_rate_matrix(real[] theta_array,
-                           			  real[] ratios,
-                           			  int N_free_para,
-                           			  vector ligand_conc,
-                        			  int M_states,
-                        			  real numeric_precision)
-		      	{
-
-        			matrix[M_states,M_states] rates;
-        			vector[N_free_para] theta_vec = multiply_ligandconc_CCCO_log_uniform(theta_array,
-                           				ratios,
-                           				N_free_para,
-                           				ligand_conc);
-
-        			rates = assign_param_to_rate_matrix_CCCO(theta_vec, M_states);
-
-        			rates  = assign_diagonal_elements(rates,M_states,
-                                    numeric_precision);
-
-        			return rates;
-    			}
-    
-    So instead of "assign_param_to_rate_matrix_CCCO" here in line 112 we have to change it to 				     "assign_param_to_rate_matrix_CCO_CO" in KF.txt file. The KF.txt file gets the number of Markov states
+    Now, obvisously that we changed the function name which defines the kinetic scheme we have to change 
+    the name also in the place where the function is called.
+    So instead of "assign_param_to_rate_matrix_CCCO" here in line 61 we have to change it to 				     "assign_param_to_rate_matrix_CCO_CO" in KF.txt file. The KF.txt file gets the number of Markov states
     as an input from the python script which starts the the sampling.
     
-    There some rates in our example whose value scales linearly with the ligand concentration we calculate these aspects     in the very first function call "multiply_ligandconc_CCCO_log_uniform" in the function "create_rate_matrix"
-    The function gets the parameters which define the rate matrix in the following and a array 
-    which consist of entries which equal ones and entries which equal the ligand concentration.
-    For each ligand concentration one array. The arrays of igand concentrations are define in
-    the folder "data" in the files ligand_conc.txt for the acivation and ligand_conc_decay.txt for the deactivation
+    As mentioned above the function “assign_param_to_rate_matrix_CCCO” assigns rates to the off diagonal elements. Note       that a closed first order Markov system requires that each diagonal element is the negative sum of its column. 
+    That property is enforced in function “assign_diagonal_elements”. Note that this is redundant as we start 
+    in the parameters block with the dwell times as parameters. But we could have chosen a different 
+    parametrization to begin with. In a current project we investiage this parametrisation but there a couple of other       options.
     
-		
-	
-     5.1. The row vector “conduc_state” needs to  be changed to the desired signal model. It 
-	represents the matrix H of the 	article which generates the mean signal for a given 
-	ensemble state but also adds covariance to signal due the fact that the true system state is unkown.
-	In the function "calcLikelihood_for_each_trace" in line 812 we defined the linear observation matrix
-	as a row vector whose:
+ 
+    5.2. The row vector “conduc_state” needs to  be changed to the desired signal model. It represents the 
+    matrix H of the article which generates the mean signal for a given ensemble state but also adds covariance 
+    to signal due the fact that the true system state is unkown. In the function "calcLikelihood_for_each_trace" in (line     812 of KF.txt) we defined the linear observation matrix
+    as a row vector whose:
 		row_vector[M_states]      conduc_state = [0,0,0, i_single_channel];
-	The fourth state is in this case the conducting state.
-	
-	If more than  two conducting classes (non-conducting and conducting) are
-	modeled, additional single-channel current parameters need to be defined in the parameters block.
+    The fourth state is in this case the conducting state. Every other of the three states has a concductance of zero.
+    If more than two conducting classes (non-conducting and conducting) are modeled, additional single-channel current       parameters need to be defined in the parameters block.
 
-	5.2 The function “multiply_ligandconc_CCCO” needs to be adapted. That function takes the parameters from
-	the parameters block and computes the rates of the rate matrix. They are then passed to the 
-	“assign_param_to_rate_matrix_CCCO” function. Note that this example code has four dwell times as parameters and two 
-	ratios from them the six rates are constructed. We recommend to use a log uniform prior for the 
-	dwell time and a beta distribution or rather a Dirichlet distribution for the 	probabilities which transition is taken.
-	5.3 The function “assign_param_to_rate_matrix_CCCO” assigns rates to 	the off diagonal elements. Note that 
-	a closed first order Markov system requires that each diagonal element is the negative sum of its column. 
-	That property is enforced in function “assign_diagonal_elements”. Note that this is redundant as we start 
-	in the 	parameters block with the dwell times as parameters. But we could have chosen a different 
-	parametrization to begin with. We argue in the paper to use this parametrisation in order to use a 
-	Jeffreys prior but there a couple of other options.
-	5.4 The mean observation needs to be changed in line 806
-	5.5 If the amount of open-channel states with differing open-channel noise variances for each state needs to be calculated,
-	the function “calc_sigma_and_mean” must be adapted
+    5.3 If there are multiple open-channel noise standard deviations states
+    the function “calc_sigma_and_mean” must be adapted
 
 
 Although we recommend to have the dwell times (diagonal elements of the rate matrix) as parameters, we recalculate them which is reminiscent of former parameterizations.  
