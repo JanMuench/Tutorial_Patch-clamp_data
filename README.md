@@ -26,8 +26,7 @@ array “current8000.npy” has the data of 10 different ligand concentrations w
 ligand jumps from zero to the concentration and back to zero. The numpy array [“Time.npy”](data/Time.npy)
 is the time axis of all traces in the current array. The ligand concentrations are saved 
 in [“ligand_conc.txt”](data/ligand_conc.txt) and [“ligand_conc_decay.txt”](data/ligand_conc_decay.txt). 
-Each row of the ligand matrix defines an 
-array whose entries are element-wise multiplied with the rates in the function 
+Each row of the ligand matrix defines an array whose entries are element-wise multiplied with the rates in the function 
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
 ligand-depended rates are multiplied with a ligand concentration.
 The time points of the concentration jumps are defined in the script  [“sample_PC_data.py”](sample_PC_data.py) 
