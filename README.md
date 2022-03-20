@@ -30,51 +30,50 @@ is the time axis of all traces in the  current array. The ligand concentrations 
 in [“ligand_conc.txt”](data/ligand_conc.txt) and [“ligand_conc_decay.txt”](data/ligand_conc_decay.txt). 
 Each row of the ligand matrix defines an 
 array whose entries are element-wise multiplied to the rates in the function 
-`multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the ligand
-depended rates are multiplied with a ligand concentration. Within the script  
+`multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
+ligand-depended rates are multiplied with a ligand concentration. Within the script  
 [“sample_PC_data.py”](sample_PC_data.py) in the functions `data_slices_beg_new` and
 `data_slices_decay_new`
 the time points of the concentration jumps are defined. Additionally, each time trace 
-is cutted that activation or deactivation is treated as an individual time trace on an 
+is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
-require 20 CPUs (activation and decay). 40 CPU to apply cross validaton times 4 for 
+require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 times to 
 4 independent sample chains.
 
-4. The output of samples as we used them in the publication.
-	1. The csv file “rate_matrix_params” saves the samples of the posterior of the rate 
-	matrix. Simply analysing them means that we marginalized all other parameters out. Note
-	that the dwell times are on a scaled log space 	thus one has to multiply them by a 
-	scaling factor for the actual log space. 
+4. The output of samples as we used in the publication:
+	1. The csv file “rate_matrix_params” contains the samples of the posterior of the rate 
+	matrix. Simply analysing them means that we marginalized out all the other parameters. Note
+	that the dwell times are on a scaled log scale thus one has to multiply them by a 
+	scaling factor for the actual log scale. 
 	2. The single-channel current samples are saved in an numpy array “i_single.npy”.
-	3. The samples of the variance parameter are saved in the numpy array 	file “measurement_sigma.npy”.
-	4. The samples of the open-channel variance parameter are saved in the numpy array file “open_variance.npy”.
-	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy array file “N_traces.npy”.
+	3. The samples of the variance parameter are saved in the numpy file “measurement_sigma.npy”.
+	4. The samples of the open-channel variance parameter are saved in the numpy file “open_variance.npy”.
+	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy file “N_traces.npy”.
 
-5. To adapt the kinetic scheme one needs to change two matrix within KF.txt: the rate marix and observation
+5. To adapt the kinetic scheme, one needs to change two matrices inside [“KF.txt”](KF.txt): the rate marix and observation
 matrix which defines which states are conducting and the functions related to the kinetic scheme. After all
 changes to the STAN  programm “KF.txt” needs to be recompiled.
 
 	1. The function
 	```Stan
 	matrix create_rate_matrix(real[] theta_array,
-					  real[] ratios,
-					  int N_free_para,
-					  vector ligand_conc,
-					  int M_states,
-					  real numeric_precision)
+			          real[] ratios,
+				  int N_free_para,
+				  vector ligand_conc,
+				  int M_states,
+				  real numeric_precision)
 	{
 
-		matrix[M_states,M_states] rates;
+		matrix[M_states, M_states] rates;
 		vector[N_free_para] theta_vec = multiply_ligandconc_CCCO_log_uniform(theta_array,
-						ratios,
-						N_free_para,
-						ligand_conc);
+							ratios,
+							N_free_para,
+							ligand_conc);
 
 		rates = assign_param_to_rate_matrix_CCCO(theta_vec, M_states);
 
-		rates  = assign_diagonal_elements(rates,M_states,
-			    numeric_precision);
+		rates  = assign_diagonal_elements(rates, M_states, numeric_precision);
 
 		return rates;
 	 }
@@ -85,23 +84,21 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 
 	```Stan
 	vector multiply_ligandconc_CCCO_log_uniform(real[] theta_array,
-		   real[] equili,
-		   int N_free_para,
-		   vector ligand_conc)
+		                                    real[] equili,
+		                                    int N_free_para,
+		                                    vector ligand_conc)
 	{
 
 		vector[N_free_para] theta;
 		//print("ratio: ", theta_array[6]);
 		theta[2] = theta_array[1];
 
-
 		theta[4] = theta_array[2] ;
-		theta[1] = theta[4]/ (1-equili[1]) * equili[1];
-
+		theta[1] = theta[4] / (1 - equili[1]) * equili[1];
 
 		theta[3] = theta_array[3] * equili[2];
-		theta[6] = theta_array[3] * (1- equili[2]);
-		theta[5] = pow(10,(4.7* equili[3]-1));
+		theta[6] = theta_array[3] * (1 - equili[2]);
+		theta[5] = pow(10, (4.7 * equili[3] - 1));
 
 		return theta .* ligand_conc;
 	}
