@@ -1,9 +1,9 @@
 # Tutorial for Patch-clamp data analysis
-This tutorial contains the example code for the analysis of patch-clamp measurements which is part of the publication “Bayesian inference of kinetic schemes for ion channels by Kalman filtering”. The work was done in Stan https://mc-stan.org/ with the PyStan https://pystan.readthedocs.io/en/latest/ interface version 2.19.1.2 which is currently outdated. We plan to update the tutorial to PyStan 3 in the near future. The code is parallelized to use multiple CPUs of a node on a computation cluster. Each individual sampling chain is trivially calculated in parallel using the standard functionalities provided by the Stan language.
+This tutorial contains the example code for the analysis of patch-clamp measurements which is part of the publication “Bayesian inference of kinetic schemes for ion channels by Kalman filtering”. The work was done in Stan https://mc-stan.org/ with the PyStan https://pystan.readthedocs.io/en/latest/ interface version 2.19.1.2 which is currently outdated. We plan to update the tutorial to PyStan 3 in the near future. The code is parallelized to use multiple CPUs of a node on a compute cluster. Each individual sampling chain is trivially calculated in parallel using the standard functionalities provided by the Stan language.
 
-The package contains a file containing the STAN code [“KF.txt”](KF.txt) as well as the python script [“compile_CCCCO_normal_split.py”](compile_CCCCO_normal_split.py) to compile the code.  Finally, the Python script [“sample_PC_data.py”](sample_PC_data.py) acts as the interface between the data and the sampler. To adapt the code to your data, basic Stan programming skills are required. The Python knowledge and the Python scripts are not obligatory, because Stan can interact with many high level data analysis programming languages (R, Python, shell, MATLAB, Julia, Stata) .  
+The package contains a file containing the Stan code [“KF.txt”](KF.txt) as well as the Python script [“compile_CCCCO_normal_split.py”](compile_CCCCO_normal_split.py) to compile the code.  Finally, the Python script [“sample_PC_data.py”](sample_PC_data.py) acts as the interface between the data and the sampler. To adapt the code to your data, basic Stan programming skills are required. Python knowledge and the Python scripts are not obligatory, because Stan can interact with many high level data analysis programming languages (R, Python, shell, MATLAB, Julia, Stata).  
 
-The topology of the kinetic scheme is uniquely defined by a rate matrix. Our example code demonstrates the analysis with a two-ligand-gated 4-state model of patch-clamp data. The rate matrix is defined by the [lines 543-563](KF.txt#L535) in the file “KF.txt”. The mean observation matrix is defined in [line 806](KF.txt#L810) with the vector variable “conduc_state”. 
+The topology of the kinetic scheme is uniquely defined by a rate matrix. Our example code demonstrates the analysis with a two-ligand-gated 4-state model of patch-clamp data. The rate matrix is defined by the [lines 543-563](KF.txt#L535) in the file “KF.txt”. The mean observation matrix is defined in [line 806](KF.txt#L810) with the vector variable `conduc_state`. 
 
 Step by step:
 
@@ -14,7 +14,7 @@ Step by step:
 python3 compile_CCCCO_normal_split.py
 ```
 into the command line.
-That compiles the Stan code [“KF.txt”](KF.txt) into an executable program “KF_CCCO.pic”.
+That compiles the Stan code [“KF.txt”](KF.txt) into an executable program `KF_CCCO.pic`.
 
 3. Entering
 ```console
@@ -22,19 +22,20 @@ python3 sample_PC_data.py 8000
 ```
 executes a Python program which acts 
 as an interface between the data from [“data/current8000.npy”](data/current8000.npy) and 	    
-sampling algorithm “KF_CCCO.pic”. 
+sampling algorithm `KF_CCCO.pic`. 
 In the folder, data are 4 numpy arrays. The numpy 
 array “current8000.npy” has the data of 10 different ligand concentrations with two
 ligand jumps from zero to the concentration and back to zero. The numpy array [“Time.npy”](data/Time.npy)
-is the time axis of all traces in the  current array. The ligand concentrations are saved 
+is the time axis of all traces in the current array. The ligand concentrations are saved 
 in [“ligand_conc.txt”](data/ligand_conc.txt) and [“ligand_conc_decay.txt”](data/ligand_conc_decay.txt). 
 Each row of the ligand matrix defines an 
-array whose entries are element-wise multiplied to the rates in the function 
+array whose entries are element-wise multiplied with the rates in the function 
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
-ligand-depended rates are multiplied with a ligand concentration. Within the script  
+ligand-depended rates are multiplied with a ligand concentration.
+The time points of the concentration jumps are defined in the script  
 [“sample_PC_data.py”](sample_PC_data.py) in the functions `data_slices_beg_new` and
-`data_slices_decay_new`
-the time points of the concentration jumps are defined. Additionally, each time trace 
+`data_slices_decay_new`.
+Additionally, each time trace 
 is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
