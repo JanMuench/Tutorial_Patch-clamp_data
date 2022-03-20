@@ -179,22 +179,22 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	`assign_param_to_rate_matrix_CCO_CO` in KF.txt file. The KF.txt file gets the number of Markov states
 	as an input from the python script which starts the the sampling.
 
-	As mentioned above the function `assign_param_to_rate_matrix_CCCO` assigns rates to the off diagonal elements. Note
-	that a closed first order Markov system requires that each diagonal element is the negative sum of its column. 
+	As mentioned above the function `assign_param_to_rate_matrix_CCCO` assigns rates to the off-diagonal elements. Note
+	that a closed first-order Markov system requires that each diagonal element is the negative sum of its column. 
 	That property is enforced in function `assign_diagonal_elements`. Note that this is redundant as we start 
 	in the parameters block with the dwell times as parameters. But we could have chosen a different 
-	parametrization to begin with. In a current project we investiage this parametrisation but there a couple of other
+	parametrization to begin with. In a current project we investiage this parametrisation but there are a couple of other
 	options.
 
 	2. The row vector `conduc_state` needs to  be changed to the desired signal model. It represents the 
-	matrix H of the article which generates the mean signal for a given ensemble state but also adds covariance 
+	matrix H from the article which generates the mean signal for a given ensemble state but also adds covariance 
 	to signal due the fact that the true system state is unkown. In the function `calcLikelihood_for_each_trace` in (line
-	812 of KF.txt) we defined the linear observation matrix
+	[812 of KF.txt](KF.txt#L794)) we defined the linear observation matrix
 	as a row vector whose:
 	```Stan
-	row_vector[M_states]      conduc_state = [0,0,0, i_single_channel];
+	row_vector[M_states] conduc_state = [0,0,0, i_single_channel];
 	```
-	The fourth state is in this case the conducting state. Every other of the three states has a concductance of zero.
+	The fourth state is in this case the conducting state. Every other of the three states has a conductance of zero.
 	If more than two conducting classes (non-conducting and conducting) are modeled, additional single-channel current
 	parameters need to be defined in the parameters block.
 
@@ -204,10 +204,10 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 
 Although we recommend to have the dwell times (diagonal elements of the rate matrix) as parameters, we recalculate them which is reminiscent of former parameterizations.  
 
-Note, that PyStan 3 is not backwards compatible. Thus, using PyStan 3 requires some minor changes to the compiling sampling and saving of the samples. To visualize and analyze a posterior/draw from the posterior, we recommend the package Corner.py. To implement a posterior post processing and diagnosis in a Bayesian workflow, we highly recommend  using the Arviz package.
+Note, that PyStan 3 is not backwards compatible. Thus, using PyStan 3 requires some minor changes to the compilation, sampling, and saving of the samples. To visualize and analyze a posterior/draw from the posterior, we recommend the package Corner.py. To implement posterior post-processing and diagnosis in a Bayesian workflow, we highly recommend  using the Arviz package.
 
-Note, that in the first KF analysis round we do not report the derived quantities such as mean signal and covariance for a given time.  We discussed in the Appendix of the paper that this would expand the total runtime of the program by roughly two orders of magnitude.  To show the posterior of the mean signal and the posterior of the variance, we suggest to use a subset of the posterior samples and feed it to the KF to do the filtering. It requires minimal changes to the KF code.
+Note, that in the first KF analysis round we do not report the derived quantities such as mean signal and covariance for a given time.  We discussed in the Appendix of the acticle that this would expand the total runtime of the program by roughly two orders of magnitude.  To show the posterior of the mean signal and the posterior of the variance, we suggest to use a subset of the posterior samples and feed it to the KF to do the filtering. This requires minimal changes to the KF code.
 
-The data used for the posterior is “data_start.npy” and “data_dec.npy”. The suffix “hold” means that this would be the data used as a hold-out data set if one would do cross validation.
+The data used for the posterior is “data_start.npy” and “data_dec.npy”. The suffix “hold” means that this would be the data used as a hold-out data set if one did cross-validation.
 
 			
