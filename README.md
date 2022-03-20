@@ -22,8 +22,7 @@ python3 sample_PC_data.py 8000
 ```
 executes a Python program which acts 
 as an interface between the data from [“data/current8000.npy”](data/current8000.npy) and 	    
-sampling algorithm `KF_CCCO.pic`. 
-In the folder, data are 4 numpy arrays. The numpy 
+sampling algorithm `KF_CCCO.pic`. In the folder, data are 4 numpy arrays. The numpy 
 array “current8000.npy” has the data of 10 different ligand concentrations with two
 ligand jumps from zero to the concentration and back to zero. The numpy array [“Time.npy”](data/Time.npy)
 is the time axis of all traces in the current array. The ligand concentrations are saved 
