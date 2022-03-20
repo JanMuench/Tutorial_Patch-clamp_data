@@ -118,7 +118,7 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 	Note, that for each ligand concentration here exist one array which gets distributed to the CPU on the upper
 	level of the Stan programm. Thus on this level every function is programme just if there was only one ligand
 	concentration. The arrays of ligand concentrations are defined in
-	the folder "data" in the files [ligand_conc.txt](data/ligand_conc.txt) for the activation and 
+	the ["data" folder](data/) in the files [ligand_conc.txt](data/ligand_conc.txt) for the activation and 
 	[ligand_conc_decay.txt](data/ligand_conc_decay.txt) for the deactivation
 
 	The rate matrix is defined in the next following function `assign_param_to_rate_matrix_CCCO` in
