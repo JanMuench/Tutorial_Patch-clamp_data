@@ -32,11 +32,9 @@ Each row of the ligand matrix defines an
 array whose entries are element-wise multiplied with the rates in the function 
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
 ligand-depended rates are multiplied with a ligand concentration.
-The time points of the concentration jumps are defined in the script  
-[“sample_PC_data.py”](sample_PC_data.py) in the functions `data_slices_beg_new` and
-`data_slices_decay_new`.
-Additionally, each time trace 
-is cut such that activation or deactivation is treated as an individual time trace on an 
+The time points of the concentration jumps are defined in the script  [“sample_PC_data.py”](sample_PC_data.py) 
+in the functions `data_slices_beg_new` and `data_slices_decay_new`.
+Additionally, each time trace is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
 require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 times to 
@@ -122,8 +120,9 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 	[ligand_conc_decay.txt](data/ligand_conc_decay.txt) for the deactivation
 
 	The rate matrix is defined in the next following function `assign_param_to_rate_matrix_CCCO` in
-	"create_rate_matrix" (line 61)
-		As an example the function:
+	"create_rate_matrix" (line 61).
+	
+	As an example the function:
 	```Stan
 	matrix assign_param_to_rate_matrix_CCCO(vector theta, int M_states)
 	{
