@@ -144,10 +144,10 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	(monomolocular chemical  reaction). Only the first and the fourth state have only 
 	one ajacent state. We chose the notation where the matrix acts onto the a column vector to its right 
 	which means the each coloumn of the rate matrix needs to be sum to zero. This happens 
-	in the following function `assign_diagonal_elements(rates,M_states, numeric_precision);`.
+	in the following function `assign_diagonal_elements(rates, M_states, numeric_precision);`.
 
 	To change the topology of the kinetic scheme from a 4 state to 5 state kinetic scheme 
-	with a loop structure you we change the function (an rename it)
+	with a loop structure, we change the function (and rename it)
 	```Stan
 	matrix assign_param_to_rate_matrix_CCO_CO(vector theta, int M_states)
 	{
@@ -164,12 +164,14 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	}
 	```
 
-	Remember that each i-th row shows you the transitions out of i-th state. Thus you can read 
-	from this matrix: The first state transitions into the second. 	
-			  The second transitions into the first, the third and the fifth
-			  The third trsnasitions into the second and forth.
-			  The forth into the third and the fifth
-			  The fifth into the second and fourth.
+	Remember that each i-th row shows the transitions out of i-th state. Thus you can read 
+	from this matrix:
+	
+	* The first state transitions into the second. 	
+	* The second transitions into the first, the third and the fifth
+	* The third transitions into the second and forth.
+	* The forth into the third and the fifth
+	* The fifth into the second and fourth.
 		
 	Now, obvisously that we changed the function name which defines the kinetic scheme we have to change 
 	the name also in the place where the function is called.
