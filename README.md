@@ -53,7 +53,7 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 
 5. To adapt the kinetic scheme, one needs to change two matrices inside [“KF.txt”](KF.txt): the rate marix and observation
 matrix which defines which states are conducting and the functions related to the kinetic scheme. After all
-changes to the STAN  programm “KF.txt” needs to be recompiled.
+changes to the Stan program, “KF.txt” needs to be recompiled.
 
 	1. The function
 	```Stan
@@ -79,7 +79,7 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	 }
 	```
 	defines the rate matrix:
-	First the, function `multiply_ligandconc_CCCO` needs to be adapted. That function takes the parameters 		
+	First, the function `multiply_ligandconc_CCCO` needs to be adapted. That function takes the parameters 		
 	from the parameters block and computes the rates of the rate matrix:
 
 	```Stan
@@ -105,19 +105,20 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	```
 
 
-	There some rates in our example whose value scales linearly with the ligand concentration
-	Add the end of the function (line 88) the rates are mutliplied elementwise with the the respective
-	ligandconcentration or 	simply with one if they are not ligand concentration depended. The return 
-	variabels are then passed to the `assign_param_to_rate_matrix_CCCO` function. Note that this 
-	example code has four dwell times as transition parameters and two probabilities from them the six 
-	rates are constructed. We recommend to use a log uniform prior for the dwell time and a beta distribution or
-	rather a Dirichlet distribution for the probabilities which transition is taken.
-	The function gets the inforation which rate is ligand concentration depended from a array 
+	There some rates in our example whose value scale linearly with the ligand concentration.
+	Ad the end of the function (line 88) the rates are mutliplied elementwise with the respective
+	ligand concentration or simply with one if they are not ligand-concentration-dependent. The return 
+	variables are then passed to the `assign_param_to_rate_matrix_CCCO` function. Note that this 
+	example code has four dwell times as transition parameters and two probabilities from which the six 
+	rates are constructed. We recommend to use a log-uniform prior for the dwell time and a beta distribution or
+	rather a Dirichlet distribution for the probabilities whose transitions are taken.
+	The function gets the information which rate is ligand-concentration-dependent from a array 
 	which consist of entries which equal ones and entries which equal the ligand concentration.
 	Note, that for each ligand concentration here exist one array which gets distributed to the CPU on the upper
-	level of the stan programm. Thus on this level every function is programme just if there was only one ligand
+	level of the Stan programm. Thus on this level every function is programme just if there was only one ligand
 	concentration. The arrays of ligand concentrations are defined in
-	the folder "data" in the files ligand_conc.txt for the acivation and ligand_conc_decay.txt for the deactivation
+	the folder "data" in the files [ligand_conc.txt](data/ligand_conc.txt) for the activation and 
+	[ligand_conc_decay.txt](data/ligand_conc_decay.txt) for the deactivation
 
 	The rate matrix is defined in the next following function `assign_param_to_rate_matrix_CCCO` in
 	"create_rate_matrix" (line 61)
@@ -137,7 +138,7 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	}
 	```
 	gets the vector variable `theta` with the rates and an int variable `M_states`
-	with the Number of Markov states. "M_states is" It defines the topology of the kinetic scheme by
+	with the number of Markov states. "M_states is" It defines the topology of the kinetic scheme by
 	the independent non-zero coefficients. Thus we defined here a 4x4 rate matrix with 
 	6 chemical reaction channels which describe the kinetic scheme of the ion channel.
 	Each ion channel has 2 states it is directly connected with by one transition 
@@ -146,8 +147,8 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	which means the each coloumn of the rate matrix needs to be sum to zero. This happens 
 	in the following function `assign_diagonal_elements(rates, M_states, numeric_precision);`.
 
-	To change the topology of the kinetic scheme from a 4 state to 5 state kinetic scheme 
-	with a loop structure, we change the function (and rename it)
+	To change the topology of the kinetic scheme from a 4-state to a 5-state kinetic scheme 
+	with a loop structure, we change the function (and rename it):
 	```Stan
 	matrix assign_param_to_rate_matrix_CCO_CO(vector theta, int M_states)
 	{
@@ -168,16 +169,16 @@ changes to the STAN  programm “KF.txt” needs to be recompiled.
 	from this matrix:
 	
 	* The first state transitions into the second. 	
-	* The second transitions into the first, the third and the fifth
-	* The third transitions into the second and forth.
-	* The forth into the third and the fifth
+	* The second transitions into the first, the third, and the fifth.
+	* The third transitions into the second and fourth.
+	* The fourth into the third and the fifth
 	* The fifth into the second and fourth.
 		
 	Now, obvisously that we changed the function name which defines the kinetic scheme we have to change 
 	the name also in the place where the function is called.
 	So instead of `assign_param_to_rate_matrix_CCCO` here in line 61 we have to change it to
-	`assign_param_to_rate_matrix_CCO_CO` in KF.txt file. The KF.txt file gets the number of Markov states
-	as an input from the python script which starts the the sampling.
+	`assign_param_to_rate_matrix_CCO_CO` in the KF.txt file. The KF.txt file gets the number of Markov states
+	as an input from the python script which starts the sampling.
 
 	As mentioned above the function `assign_param_to_rate_matrix_CCCO` assigns rates to the off-diagonal elements. Note
 	that a closed first-order Markov system requires that each diagonal element is the negative sum of its column. 
