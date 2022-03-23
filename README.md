@@ -22,7 +22,7 @@ python3 sample_PC_data.py 8000
 ```
 executes a Python program which acts as an interface between the data from [“data/current8000.npy”](data/current8000.npy) and 	    
 sampling algorithm `KF_CCCO.pic`. In the folder, data are 4 numpy arrays. The numpy 
-array “current8000.npy” has the data of 10 different ligand concentrations with two
+array [“data/current8000.npy”](data/current8000.npy) has the data of 10 different ligand concentrations with two
 ligand jumps from zero to the concentration and back to zero. The numpy array [“Time.npy”](data/Time.npy)
 is the time axis of all traces in the current array. The ligand concentrations are saved 
 in [“ligand_conc.txt”](data/ligand_conc.txt) and [“ligand_conc_decay.txt”](data/ligand_conc_decay.txt). 
@@ -30,7 +30,7 @@ Each row of the ligand matrix defines an array whose entries are element-wise mu
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
 ligand-depended rates are multiplied with a ligand concentration.
 The time points of the concentration jumps are defined in the script  [“sample_PC_data.py”](sample_PC_data.py) 
-in the functions `data_slices_beg_new` and `data_slices_decay_new`.
+in the functions `data_slices_beg_new` in (sample_PC_data.py#L51) and `data_slices_decay_new`.
 Additionally, each time trace is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
