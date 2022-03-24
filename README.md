@@ -50,14 +50,14 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 <details>
 <summary><b>The output of samples as we used in the publication</b></summary>
 
-        1. The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
-	matrix. Simply analysing them means that we marginalized out all the other parameters. Note
-	that the dwell times are on a scaled log scale thus one has to multiply them by a 
-	scaling factor for the actual log scale. 
-	2. The single-channel current samples are saved in an numpy array `i_single.npy`.
-	3. The samples of the variance parameter are saved in the numpy file `measurement_sigma.npy`.
-	4. The samples of the open-channel variance parameter are saved in the numpy file `open_variance.npy`.
-	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy file `N_traces.npy`.
+        - The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
+	  matrix. Simply analysing them means that we marginalized out all the other parameters. Note
+	  that the dwell times are on a scaled log scale thus one has to multiply them by a 
+	  scaling factor for the actual log scale. 
+	- The single-channel current samples are saved in an numpy array `i_single.npy`.
+	- The samples of the variance parameter are saved in the numpy file `measurement_sigma.npy`.
+	- The samples of the open-channel variance parameter are saved in the numpy file `open_variance.npy`.
+	- The samples of the “Ion channels per time trace parameter” are saved in the numpy file `N_traces.npy`.
 
 </details>
 
