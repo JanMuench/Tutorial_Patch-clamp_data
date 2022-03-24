@@ -208,13 +208,13 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 
 </details>
 
-	
-
+<details>
+<summary><b>Changes of the observation model</b></summary>
 
 	2. The row vector `conduc_state` needs to  be changed to the desired signal model. It represents the 
 	matrix H from the article which generates the mean signal for a given ensemble state but also adds covariance 
 	to signal due the fact that the true system state is unkown. In the function `calcLikelihood_for_each_trace` in (line
-	[812 of KF.txt](KF.txt#L794)) we defined the linear observation matrix
+	[KF.txt](KF.txt#L794) we defined the linear observation matrix
 	as a row vector whose:
 	```Stan
 	row_vector[M_states] conduc_state = [0,0,0, i_single_channel];
@@ -226,6 +226,14 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 	3. If there are multiple open-channel noise standard deviations states
 	the function `calc_sigma_and_mean` must be adapted.
 
+</details>
+
+
+	
+
+
+
+## Some other comments
 
 Although we recommend to have the dwell times (diagonal elements of the rate matrix) as parameters, we recalculate them which is reminiscent of former parameterizations.  
 
@@ -233,6 +241,6 @@ Note, that PyStan 3 is not backwards compatible. Thus, using PyStan 3 requires s
 
 Note, that in the first KF analysis round we do not report the derived quantities such as mean signal and covariance for a given time.  We discussed in the Appendix of the acticle that this would expand the total runtime of the program by roughly two orders of magnitude.  To show the posterior of the mean signal and the posterior of the variance, we suggest to use a subset of the posterior samples and feed it to the KF to do the filtering. This requires minimal changes to the KF code.
 
-The data used for the posterior is “data_start.npy” and “data_dec.npy”. The suffix “hold” means that this would be the data used as a hold-out data set if one did cross-validation.
+The data used for the posterior is `data_start.npy` and `data_dec.npy`. The suffix “hold” means that this would be the data used as a hold-out data set if one did cross-validation.
 
 			
