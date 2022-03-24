@@ -51,13 +51,10 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 
 
 
+<details>
+<summary><b>The output of samples as we used in the publication</b></summary>
 
-
-
-
-
-4. The output of samples as we used in the publication:
-	1. The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
+        1. The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
 	matrix. Simply analysing them means that we marginalized out all the other parameters. Note
 	that the dwell times are on a scaled log scale thus one has to multiply them by a 
 	scaling factor for the actual log scale. 
@@ -65,6 +62,11 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 	3. The samples of the variance parameter are saved in the numpy file `measurement_sigma.npy`.
 	4. The samples of the open-channel variance parameter are saved in the numpy file `open_variance.npy`.
 	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy file `N_traces.npy`.
+
+</details>
+
+<details>
+<summary><b>How to adapt the kinetic scheme to new data</b></summary>
 
 5. To adapt the kinetic scheme, one needs to change two matrices inside [“KF.txt”](KF.txt): the rate marix and observation
 matrix which defines which states are conducting and the functions related to the kinetic scheme. After all
@@ -202,6 +204,12 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 	in the parameters block with the dwell times as parameters. But we could have chosen a different 
 	parametrization to begin with. In a current project we investiage this parametrisation but there are a couple of other
 	options.
+
+
+</details>
+
+	
+
 
 	2. The row vector `conduc_state` needs to  be changed to the desired signal model. It represents the 
 	matrix H from the article which generates the mean signal for a given ensemble state but also adds covariance 
