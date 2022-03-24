@@ -9,7 +9,7 @@ The topology of the kinetic scheme is uniquely defined by a rate matrix. Our exa
 ## Step by step:
 
 <details>
-<summary><b> How to start the posterior sampling of the example PC data </b></summary>
+<summary><b> How to start the posterior sampling of the example PC data as test run on a node of cluster. </b></summary>
 
 1. One needs to install Stan and PyStan.
 
@@ -34,7 +34,8 @@ Each row of the ligand matrix defines an array whose entries are element-wise mu
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
 ligand-depended rates are multiplied with a ligand concentration.
 The time points of the concentration jumps are defined in the script  [“sample_PC_data.py”](sample_PC_data.py) 
-in the functions [data_slices_beg_new](sample_PC_data.py#L51) and [data_slices_decay_new](sample_PC_data.py#L115)
+in the functions [data_slices_beg_new](sample_PC_data.py#L51) and ["data_slices_decay_new"](sample_PC_data.py#L115)
+We explain further below how to alter the selected ime points used for the fit.	
 Additionally, each time trace is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU.
 We assumed that we only needed 5 patches. So two ligand concentrations 
@@ -49,6 +50,7 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 
 <details>
 <summary><b>The output of samples as we used in the publication</b></summary>
+
 + The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
   matrix. Simply analysing them means that we marginalized out all the other parameters. Note 
   that the dwell times are on a scaled log scale thus one has to multiply them by a  
@@ -206,22 +208,40 @@ changes to the Stan program, “KF.txt” needs to be recompiled.
 <details>
 <summary><b>Changes of the observation model</b></summary>
 
-	2. The row vector `conduc_state` needs to  be changed to the desired signal model. It represents the 
-	matrix H from the article which generates the mean signal for a given ensemble state but also adds covariance 
-	to signal due the fact that the true system state is unkown. In the function `calcLikelihood_for_each_trace` in (line
-	[KF.txt](KF.txt#L794) we defined the linear observation matrix
-	as a row vector whose:
-	```Stan
-	row_vector[M_states] conduc_state = [0,0,0, i_single_channel];
-	```
-	The fourth state is in this case the conducting state. Every other of the three states has a conductance of zero.
-	If more than two conducting classes (non-conducting and conducting) are modeled, additional single-channel current
-	parameters need to be defined in the parameters block.
+1. The row vector `conduc_state` needs to  be changed to the desired signal model. It represents the 
+   matrix H from the article which generates the mean signal for a given ensemble state but also adds covariance 
+   to signal due the fact that the true system state is unkown. In the function `calcLikelihood_for_each_trace` in (line
+   [KF.txt](KF.txt#L794) we defined the linear observation matrix
+   as a row vector whose [KF.txt](KF.txt#L812):
+   `Stan
+   row_vector[M_states] conduc_state = [0,0,0, i_single_channel];
+   `
+   The fourth state is in this case the conducting state. Every other of the three states has a conductance of zero.
+   If more than two conducting classes (non-conducting and conducting) are modeled, additional single-channel current
+   parameters need to be defined in the parameters block.
 
-	3. If there are multiple open-channel noise standard deviations states
-	the function `calc_sigma_and_mean` must be adapted.
+2. If there are multiple open-channel noise standard deviations states
+   the function `calc_sigma_and_mean` must be adapted.
 
 </details>
+
+<details>
+<summary><b>How to change the selected data points </b></summary>
+
+The Bayesian filter assume the following data structure one data point before the concentration 
+jump which is for each ligand concentration defined in ["data_slices_decay_new"](sample_PC_data.py#L71-#L80) 
+and the followng data of the activation curve is selected in ["data_slices_decay_new"](sample_PC_data.py#L53-#L62)
+The time difference for equaly spaced datapoints is defined in ["data_slices_decay_new"](sample_PC_data.py#L85-#L89)
+The concentration jump happens at element 2500 of the array `Time` we create a zero time in 
+["data_slices_decay_new"](sample_PC_data.py#L91) and then define the offset time between the firs and second data point.
+["data_slices_decay_new"](sample_PC_data.py#L92-#L93)	
+
+	Similar for the deactivation for each ligand concentration the first datapoint is still with applied ligand concentration
+defined in ["data_slices_decay_new"](sample_PC_data.py#L131-#L140) 
+and the following data of the deactivation curve is selected in ["data_slices_decay_new"](sample_PC_data.py#L119-#L128)
+
+</details>
+
 
 
 	
