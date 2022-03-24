@@ -33,9 +33,8 @@ The time points of the concentration jumps are defined in the script  [“sample
 in the functions [data_slices_beg_new](sample_PC_data.py#L51) and [data_slices_decay_new](sample_PC_data.py#L115)
 Additionally, each time trace is cut such that activation or deactivation is treated as an individual time trace on an 
 individual CPU.
-
 <details>
-<summary><b>My section header in bold</b></summary>
+<summary><b>Details of the paralel computation on different CPUs</b></summary>
 
 We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
