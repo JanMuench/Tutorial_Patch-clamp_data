@@ -30,12 +30,22 @@ Each row of the ligand matrix defines an array whose entries are element-wise mu
 `multiply_ligandconc_CCCO`. Ligand-independent rates are multiplied by one and the 
 ligand-depended rates are multiplied with a ligand concentration.
 The time points of the concentration jumps are defined in the script  [“sample_PC_data.py”](sample_PC_data.py) 
-in the functions [data_slices_beg_new](sample_PC_data.py#L51) and `data_slices_decay_new`.
+in the functions [data_slices_beg_new](sample_PC_data.py#L51) and [data_slices_decay_new](sample_PC_data.py#L115)
 Additionally, each time trace is cut such that activation or deactivation is treated as an individual time trace on an 
-individual CPU. We assumed that we only needed 5 patches. So two ligand concentrations 
+individual CPU.
+
+<details>
+<summary><b>My section header in bold</b></summary>
+
+We assumed that we only needed 5 patches. So two ligand concentrations 
 were measured from one patch. For optimal caluclation efficiency, 10 time traces 
 require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 times to 
 4 independent sample chains.
+
+</details>
+
+
+
 
 4. The output of samples as we used in the publication:
 	1. The csv file “rate_matrix_params” contains the samples of the posterior of the rate 
