@@ -47,14 +47,14 @@ require 20 CPUs (activation and decay) or 40 CPUs to apply cross-validaton 4 tim
 
 
 4. The output of samples as we used in the publication:
-	1. The csv file “rate_matrix_params” contains the samples of the posterior of the rate 
+	1. The csv file `rate_matrix_params` contains the samples of the posterior of the rate 
 	matrix. Simply analysing them means that we marginalized out all the other parameters. Note
 	that the dwell times are on a scaled log scale thus one has to multiply them by a 
 	scaling factor for the actual log scale. 
-	2. The single-channel current samples are saved in an numpy array “i_single.npy”.
-	3. The samples of the variance parameter are saved in the numpy file “measurement_sigma.npy”.
-	4. The samples of the open-channel variance parameter are saved in the numpy file “open_variance.npy”.
-	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy file “N_traces.npy”.
+	2. The single-channel current samples are saved in an numpy array `i_single.npy`.
+	3. The samples of the variance parameter are saved in the numpy file `measurement_sigma.npy`.
+	4. The samples of the open-channel variance parameter are saved in the numpy file `open_variance.npy`.
+	5. The samples of the “Ion channels per time trace parameter” are saved in the numpy file `N_traces.npy`.
 
 5. To adapt the kinetic scheme, one needs to change two matrices inside [“KF.txt”](KF.txt): the rate marix and observation
 matrix which defines which states are conducting and the functions related to the kinetic scheme. After all
