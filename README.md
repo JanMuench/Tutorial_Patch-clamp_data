@@ -238,7 +238,7 @@ The concentration jump happens at element 2500 of the array `Time` we create a z
 ["data_slices_decay_new"](sample_PC_data.py#L91) and then define the offset time between the firs and second data point.
 ["data_slices_decay_new"](sample_PC_data.py#L92-#L93)	
 
-	Similar for the deactivation for each ligand concentration the first datapoint is still with applied ligand concentration
+Similar for the deactivation for each ligand concentration the first datapoint is still with applied ligand concentration
 defined in ["data_slices_decay_new"](sample_PC_data.py#L131-#L140) 
 and the following data of the deactivation curve is selected in ["data_slices_decay_new"](sample_PC_data.py#L119-#L128)
 
