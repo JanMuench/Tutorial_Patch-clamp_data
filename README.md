@@ -6,7 +6,9 @@ The package contains a file containing the Stan code [“KF.txt”](KF.txt) as w
 Some tutorials about Stan Bayesian statistics and model selection can be found here https://mc-stan.org/users/documentation/tutorials or
 here https://ourcodingclub.github.io/tutorials/stan-intro/. Also youtube has many good starting tutorials.
 
-The topology of the kinetic scheme is uniquely defined by a rate matrix. We chose that the matrix acts to right such that a column describes all transitions out of one state (instead the other common notation in transposed form). Our example code demonstrates the analysis with a two-ligand-gated 4-state model of patch-clamp data. The rate matrix is defined by the [lines 543-563](KF.txt#L535) in the file “KF.txt”. The mean observation matrix is defined in [line 806](KF.txt#L810) with the vector variable `conduc_state`. 
+The topology of the kinetic scheme is uniquely defined by a rate matrix. We chose that the matrix acts to right such that a column describes all transitions out of one state (instead the other common notation in transposed form). Our example code demonstrates the analysis with a two-ligand-gated 4-state model of patch-clamp data. The rate matrix is defined by the [lines 543-563](KF.txt#L535) in the file “KF.txt”. 
+The details of the experiment are defined with the observation matrix which is for cPCF data a two row matrix which is columns as many a s the system has markov states.
+The mean observation matrix is defined in [line 806](KF.txt#L810) with the vector variable `conduc_state`. 
 
 ## Step by step:
 
