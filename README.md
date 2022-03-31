@@ -10,11 +10,11 @@ The topology of the kinetic scheme is uniquely defined by a rate matrix.
 We chose that the matrix acts to right such that a column describes all transitions out of one state 
 (instead the other common notation in transposed form). Our example code demonstrates the analysis with a two-ligand-gated 4-state model 
 of patch-clamp data. The rate matrix is defined by the function ["create_rate_matrix lines 546-565"](KF.txt#L5456-#L565) in the file “KF.txt”.
-In this function the subfunction `multiply_ligandconc_CCCO_log_uniform` is called which is defined in ["multiply_ligandconc_CCCO_log_uniform line 306"](KF.txt#L306). In this function for each ligand concentration the respective rates are construncted First for the ligand concentration of 1 and than
-in line ["multiply_ligandconc_CCCO_log_uniform line 306"](KF.txt#L325). The function `assign_param_to_rate_matrix_CCCO` called in line 559 and defined in ["assign_param_to_rate_matrix_CCCO"](KF.txt#L255-#L267) defines the Toplogy. Finnaly the function `assign_diagonal_elements` ensure that each column sums to zero. 
+In this function the subfunction `multiply_ligandconc_CCCO_log_uniform` is called which is defined in ["multiply_ligandconc_CCCO_log_uniform line 306"](KF.txt#L306). In this function for each ligand concentration the respective rates are construncted First for the ligand concentration of 1. In the foloowing ["multiply_ligandconc_CCCO_log_uniform line 306"](KF.txt#L325) each ligan depended rate is multiplied with the igan concentration or with 1 if it is constant rate. The function `assign_param_to_rate_matrix_CCCO` called in line 559 and defined in ["assign_param_to_rate_matrix_CCCO"](KF.txt#L255-#L267) defines the Toplogy. Finaly, the function `assign_diagonal_elements` ensure that each column sums to zero as we are modeling closed chemical transition networks. 
 
 The details of the experiment are defined with the observation matrix which is for cPCF data a two row matrix which is columns as many a s the system has markov states.
-The mean observation matrix is defined in [line 806](KF.txt#L810) with the vector variable `conduc_state`. 
+The mean observation matrix is defined in ["line 806"](KF.txt#L812) with the vector variable `conduc_state`. When it acts upon the mean predicted 
+state it generates the mean preicted signal. 
 
 ## Step by step:
 
